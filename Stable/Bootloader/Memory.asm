@@ -1,5 +1,4 @@
 [bits 16]
-[cpu 8086]
 
 
 MemoryAvaiable: dw 0

@@ -1,20 +1,50 @@
 [org 0x7c00]
 [bits 16]
+[cpu 286]
+
+; *IMPORTANT STUFF
+; *FAT stuff: https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
+
 
 
 ; Skips the includes
 jmp Start
+nop
 
-%include "./Bootloader/Print.asm"
-%include "./Bootloader/Disk.asm"
-%include "./Bootloader/Memory.asm"
 
+; --//  BIOS paramenter block (BPB)  \\--
+
+OEMidentifier: db "MascOS  "
+BytesPerSector: dw 512
+SectorsPerCluster: db 1
+ReservedSectors: dw 1 ; Sectors for boot record
+NumberOfFATs: db 2 ; Number of copies of FAT. Usually 2
+RootDirEntries: dw 224 ; Number of entries in the root directory
+; *14 sectors to read
+LogicalSectors: dw 2880 ; Sectors in logical volume
+MediaDescriptor: db 0xF0 ; Media descriptor byte, see IMPORTANT STUFF at the beggining of this file
+SectorsPerFAT: dw 9
+SectorsPerTrack: dw 18
+Heads: dw 2
+HiddenSectors: dd 0
+LargeSectors: dd 0 ; Sectors per LBA
+
+; Extended boot record
+DriveNumber: db 0 ; Should be equal to the value returned in dl
+DriveFlags: db 0 ; Flags in windows NT. Reserved otherwise
+Signature: db 0x29 ; Or 0x28 or 0x29
+VolumeId: dd 0 ; Ignore I you aren't willing to put one
+VolumeLabel: db "MascOS     " ; Anything but must be 11 bytes
+FileSystem: db "FAT12   " ; Don't touch pls
+
+
+
+; --//  Bootloader code  \\--
 
 ; Some BIOSes jump to the boot sector with 0x07c0:0x0000 or 0x0000:0x7c00 and other ways so we set CS to 0
 Start:
     cli
     jmp 0x0000:Main
-    nop
 
 
 Main:
@@ -34,86 +64,34 @@ Main:
 
     sti
 
-    call GetMemoryAvaiable
+    ; call GetMemoryAvaiable
+
+    ; Load root dir
+    call GetRootDirInfo
+    mov ax, word [RootDirStartPoint]
+    call LbaToChs
+
+    mov bx, 0x7e00
+    mov al, [RootDirSize]
     call ReadDisk
 
+    jmp SearchKernel
+
     ; Clears the screen
-    mov ah, 0
-    mov al, 3
-    int 0x10
+    ; mov ah, 0
+    ; mov al, 3
+    ; int 0x10
 
-    call PrintLogo
-
-    ; Waits 4 seconds
-    mov cx, 0x2d
-    mov dx, 0x4240
-    mov ah, 0x86
-    int 0x15
-
-    ; Jumps to kernel
-    jmp 0x100:0x0
-
-
-
-; *TRASH CODE WARNING! CONTINUE AT YOUR OWN RISK
-PrintLogo:
-    xor cx, cx
-
-    .Loop:
-        cmp cx, byte 6
-        je .Logo
-
-        call PrintNewLine
-
-        inc cx
-        jmp .Loop
-
-    .Logo:
-        ; You didn't listen to the warning, ah?
-        mov si, MascLogoSpace
-        call PrintString
-
-        mov si, MascLogo
-        call PrintString
-
-        mov si, MascLogoSpace
-        call PrintString
-
-        mov si, MascLogo1
-        call PrintString
-
-        mov si, MascLogoSpace
-        call PrintString
-
-        mov si, MascLogo2
-        call PrintString
-
-        mov si, MascLogoSpace
-        call PrintString
-
-        mov si, MascLogo3
-        call PrintString
-
-        ; Welcome message
-        mov si, WelcomeSpace
-        call PrintString
-
-        mov si, WelcomeMessage
-        call PrintString
-
-    ret
+    ; Jumps to 0x7e00, the second stage
+    ; jmp 0x0:0x7e00
+    jmp $
 
 
 
 
-; Don't kill me pls
-MascLogoSpace: db "                    ", 0
-MascLogo: db "  \  |                      _ \   ___|", 10, 13, 0
-MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 10, 13, 0
-MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 10, 13, 0
-MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 10, 13, 10, 13, 0
-WelcomeSpace: db "                         ", 0
-WelcomeMessage: db "Welcome to MascOS! Loading...", 0
+%include "./Bootloader/Print.asm"
+%include "./Bootloader/Disk.asm"
+; %include "./Bootloader/Memory.asm"
 
 
 ; Fills the rest of the sector with 0s and boot signature
