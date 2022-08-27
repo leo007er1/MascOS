@@ -25,7 +25,7 @@ Main:
 	dd status=noxfer conv=notrunc seek=2 if=$(BuildDir)/Kernel.bin of=$(BuildDir)/MascOS.flp
 
 
-stable:
+stable: CreateBuildDir
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDirStable)/Bootloader.asm -o $(BuildDir)/Bootloader.bin
 
