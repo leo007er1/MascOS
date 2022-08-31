@@ -4,7 +4,7 @@
 
 ## Current situation of the project
 
-Currently the latest version doesn't work because since I need to load the necessary stuff to execute the kernel, I need to create a driver for the filesystem, FAT12. I started creating the driver in `Disk.asm` if you want to check some sh** code. I wanted to release this update now because I can, ok? No one is gonna complain since no one cares about my project, and me mostly.
+The latest version includes FAT12 and the driver works, so to try it out if you want. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
 ## Why MascOS
 
@@ -20,7 +20,7 @@ After installing these packages open a terminal window and clone this repo with:
 git clone https://github.com/leo007er1/MascOS.git && cd MascOS
 ```
 
-Now you can compile the last stable-usable version of MascOS or the latest one, but currently the latest one doesn't work and the stable one has some issue on machines other than mine apparently. To compile the "stable" versione run:
+Now you can compile the last stable-usable version of MascOS or the latest one, but currently the stable one has some issue on machines other than mine apparently. If you compile the non-stable version you need sudo permissions because the Makefile mounts an image to /dev/loop6. To compile the "stable" versione run:
 ```sh
 make stable
 ```

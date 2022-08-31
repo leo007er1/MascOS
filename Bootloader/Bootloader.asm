@@ -12,7 +12,10 @@ jmp Start
 nop
 
 
+
 ; --//  BIOS paramenter block (BPB)  \\--
+
+
 
 OEMidentifier: db "MascOS  "
 BytesPerSector: dw 512
@@ -20,7 +23,6 @@ SectorsPerCluster: db 1
 ReservedSectors: dw 1 ; Sectors for boot record
 NumberOfFATs: db 2 ; Number of copies of FAT. Usually 2
 RootDirEntries: dw 224 ; Number of entries in the root directory
-; *14 sectors to read
 LogicalSectors: dw 2880 ; Sectors in logical volume
 MediaDescriptor: db 0xF0 ; Media descriptor byte, see IMPORTANT STUFF at the beggining of this file
 SectorsPerFAT: dw 9
@@ -41,6 +43,9 @@ FileSystem: db "FAT12   " ; Don't touch pls
 
 ; --//  Bootloader code  \\--
 
+
+
+
 ; Some BIOSes jump to the boot sector with 0x07c0:0x0000 or 0x0000:0x7c00 and other ways so we set CS to 0
 Start:
     cli
@@ -49,7 +54,7 @@ Start:
 
 Main:
     ; Saves the number of the drive where we currently are
-    mov [BootDisk], dl
+    mov byte [BootDisk], dl
 
     ; Segments setup
     xor ax, ax
@@ -64,34 +69,20 @@ Main:
 
     sti
 
-    ; call GetMemoryAvaiable
+    call GetMemoryAvaiable
 
-    ; Load root dir
-    call GetRootDirInfo
-    mov ax, word [RootDirStartPoint]
-    call LbaToChs
+    jmp LoadFAT
+    call SearchKernel
 
-    mov bx, 0x7e00
-    mov al, [RootDirSize]
-    call ReadDisk
-
-    jmp SearchKernel
-
-    ; Clears the screen
-    ; mov ah, 0
-    ; mov al, 3
-    ; int 0x10
-
-    ; Jumps to 0x7e00, the second stage
-    ; jmp 0x0:0x7e00
-    jmp $
+    cli
+    hlt
 
 
 
 
 %include "./Bootloader/Print.asm"
 %include "./Bootloader/Disk.asm"
-; %include "./Bootloader/Memory.asm"
+%include "./Bootloader/Memory.asm"
 
 
 ; Fills the rest of the sector with 0s and boot signature

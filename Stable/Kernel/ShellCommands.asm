@@ -9,6 +9,7 @@ Help:
     jmp GetCommand.AddNewLine
 
 
+
 Clear:
     ; Clears the screen
     mov ah, 0x0
@@ -18,10 +19,22 @@ Clear:
     jmp GetCommand.AddNewLine
 
 
+
 ; Note: I could do: jmp 0xffff:0, but I preffer using int 0x19
 Reboot:
     mov ax, 0
     int 0x19
+
+
+
+; Why not, I mean
+Himom:
+    call PrintNewLine
+    mov si, HimomText
+    call PrintString
+
+    jmp GetCommand.AddNewLine
+
 
 
 Time:
@@ -34,4 +47,5 @@ Time:
 
 
 
-HelpText: db "  clear = clears the terminal", 10, 13, "  reboot = reboots the system", 10, 13, 0
+HelpText: db "  clear = clears the terminal", 10, 13, "  reboot = reboots the system", 10, 13, "  himom = ???", 0
+HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0

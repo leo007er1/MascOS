@@ -55,4 +55,3 @@ PrintNewLine:
     pop ax
 
 %endmacro
-

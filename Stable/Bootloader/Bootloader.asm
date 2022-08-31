@@ -107,12 +107,12 @@ PrintLogo:
 
 
 ; Don't kill me pls
-MascLogoSpace: db "                    ", 0
+MascLogoSpace: db "                 ", 0
 MascLogo: db "  \  |                      _ \   ___|", 10, 13, 0
 MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 10, 13, 0
 MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 10, 13, 0
 MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 10, 13, 10, 13, 0
-WelcomeSpace: db "                         ", 0
+WelcomeSpace: db "                      ", 0
 WelcomeMessage: db "Welcome to MascOS! Loading...", 0
 
 

@@ -6,7 +6,8 @@ Help:
     mov si, HelpText
     call PrintString
 
-    jmp GetCommand.AddNewLine
+    jmp GetCommand.AddNewDoubleLine
+
 
 
 Clear:
@@ -15,7 +16,9 @@ Clear:
     mov al, 0x3
     int 0x10
 
-    jmp GetCommand.AddNewLine
+    ; We don't want an empty line on the top of the screen
+    jmp GetCommand.SkipNewLine
+
 
 
 ; Note: I could do: jmp 0xffff:0, but I preffer using int 0x19
@@ -24,14 +27,26 @@ Reboot:
     int 0x19
 
 
+
+; Why not, I mean
+Himom:
+    call PrintNewLine
+    mov si, HimomText
+    call PrintString
+
+    jmp GetCommand.AddNewDoubleLine
+
+
+
 Time:
     ; http://www.ctyme.com/intr/rb-2271.htm
     ; Get system time
     mov ah, 0
     int 0x1a
 
-    jmp GetCommand.AddNewLine
+    jmp GetCommand.AddNewDoubleLine
 
 
 
-HelpText: db "  clear = clears the terminal", 10, 13, "  reboot = reboots the system", 10, 13, 0
+HelpText: db "  clear = clears the terminal", 10, 13, "  reboot = reboots the system", 10, 13, "  himom = ???", 0
+HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0

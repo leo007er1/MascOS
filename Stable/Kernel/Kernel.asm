@@ -22,7 +22,8 @@ Main:
     
     jmp InitShell
 
-    jmp $
+    cli
+    hlt
 
 
 ; Fills 6 sectors

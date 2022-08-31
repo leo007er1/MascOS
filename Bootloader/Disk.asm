@@ -12,6 +12,22 @@
 ; ReservedSectors + (NumberOfFATs * SectorsPerFAT) = 19
 ; *How to calculate the size of the root dir:
 ; 32(entry size) * RootDirEntries / BytesPerSector
+;
+; *How to convert LBA to CHS:
+; sector = (LBA % SectorsPerTrack) + 1
+; head = (LBA / SectorsPerTrack) % Heads
+; track = LBA / (SectorsPerTrack * Heads)
+;
+; I saw online that entries with a file attribute of 0xf are "fake" ones to use for long file names
+;
+; *Useful stuff:
+; https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
+
+
+; We load only the first FAT and reserve 4.5KB to it
+FATMemLocation equ 0x500
+; We load the root directory after the IVT and reserve 7KB to it
+RootDirMemLocation equ 0x1700
 
 
 
@@ -35,6 +51,7 @@ ReadDisk:
     mov dh, byte [ChsHead] ; H (head)
     mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
 
+    stc
     int 0x13
     jc .Check ; Carry flag set
     jmp .Exit
@@ -53,35 +70,126 @@ ReadDisk:
 
 
 
-; Searches all entries for kernel
+; Loads the first FAT
+LoadFAT:
+    ; FATs are just after the reserved sectors, so...
+    mov ax, word [ReservedSectors]
+    call LbaToChs
+
+    mov bx, FATMemLocation
+    mov al, [SectorsPerFAT] ; Sectors to read
+    call ReadDisk
+
+
+
+; Loads the root directory
+LoadRootDir:
+    call GetRootDirInfo
+
+    ; Get CHS info
+    mov ax, word [RootDirStartPoint]
+    call LbaToChs
+
+    mov bx, RootDirMemLocation
+    mov al, [RootDirSize] ; Sectors to read
+    call ReadDisk
+
+
+
+; Searches for an entry in the root dir with the kernel file name
 SearchKernel:
-    mov cx, word [RootDirEntries] ; loop uses cx as counter
-    mov di, 0x7e00 ; Where we loaded the root dir table
+    mov di, RootDirMemLocation
+    mov ax, word [RootDirEntries] ; Counter
 
     .NextEntry:
-        push cx
         push di
+        dec ax
 
         mov si, KernelFileName ; First string
         mov cx, 11 ; How many bytes to compare
 
-        rep cmpsb
+        repe cmpsb
 
-        pop di ; Sets the original value back
-        je .KernelFound
+        pop di ; Get the original value back(current entry start)
+        je LoadKernel
 
-        ; Nope
-        pop cx
-        add di, 32 ; Bytes per entry
-        loop .NextEntry
+        add di, 32 ; Every entry is 32 bytes
 
-        ; Oh no, no mighty kernel?
+        cmp ax, word 0
+        jne .NextEntry
+
+        ; Nope. Nope.
         jmp ReadDiskError
 
-    .KernelFound:
 
-        jmp $
 
+LoadKernel:
+    mov ax, word [di + 0x1a] ; Bytes 26-27 is the first cluster
+    mov word [CurrentCluster], ax ; Save it
+
+    ; Where we load the kernel
+    mov ax, 0x7e0
+    mov es, ax
+    mov bx, 0
+
+    .LoadCluster:
+        ; The actual data sector is start at sector 33.
+        ; Also -2 because the first 2 entries are reserved
+        mov ax, word [CurrentCluster]
+        add ax, 31
+
+        ; call ClusterToLba
+        call LbaToChs
+
+        mov bx, word [KernelOffset]
+        mov al, byte [SectorsPerCluster]
+        call ReadDisk
+
+        ; Calculates next cluster
+        ; Since the values for the clusters are 12 bits we need to read a two bytes
+        ; and kick off the other 4 bits. We do:
+        ; CurrentCluster + (CurrentCluster / 2)
+        mov ax, word [CurrentCluster]
+        mov dx, ax
+        mov cx, ax
+        shr cx, 1 ; Shift a bit to the right, aka divide by 2
+        add ax, cx
+
+        ; Get the 12 bits
+        mov bx, FATMemLocation
+        add bx, ax
+        mov ax, word [bx]
+
+        ; Checks if the current cluster is even or not
+        ; Checks if the first bit is 1 or 0
+        test dx, 1
+        jz .EvenCluster
+
+        .OddCluster:
+            shr ax, 4
+            jmp .Continue
+
+        .EvenCluster:
+            and ax, 0xfff
+
+        .Continue:
+            mov word [CurrentCluster], ax ; Save the new cluster
+
+            cmp ax, word 0xfff ; 0xff8 represent the last cluster
+            jae .KernelLoaded
+
+            add word [KernelOffset], 512 ; Next sector
+            jmp .LoadCluster
+
+
+        .KernelLoaded:
+            ; Clears the screen
+            mov ah, 0
+            mov al, 3
+            int 0x10
+
+            ; Jump to kernel
+            jmp 0x7e0:0x0
 
 
 
@@ -106,23 +214,44 @@ ResetDisk:
 ; Input:
 ;   ax = lba address to convert
 LbaToChs:
-    push cx
-    mov dx, 0
+    push ax
 
     ; Sector
+    mov dx, 0
     div word [SectorsPerTrack]
     inc dl ; Sectors start from 1
     mov byte [ChsSector], dl
 
+    pop ax
+
     ; Head and track
+    mov dx, 0
+    div word [SectorsPerTrack]
     mov dx, 0
     div word [Heads]
     mov byte [ChsTrack], al
     mov byte [ChsHead], dl
 
-    pop cx
+    ret
+
+
+; Gets a cluster number and converts it to LBA
+; Input:
+;   ax = chs address to convert
+; Output:
+;   ax = LBA
+ClusterToLba:
+    mov cx, 0
+    mov dx, 0
+
+    sub ax, 2
+    mov cl, byte [SectorsPerCluster]
+    mul cx
+
+    ; add ax, word [FirstDataSector]
 
     ret
+
 
 
 
@@ -137,6 +266,7 @@ GetRootDirInfo:
     add ax, word [ReservedSectors]
 
     mov word [RootDirStartPoint], ax
+    ; mov word [FirstDataSector], ax
 
     ; Gets the size in sectors of the root dir
     mov ax, 32 ; Every entry is 32 bytes
@@ -144,6 +274,9 @@ GetRootDirInfo:
     div word [BytesPerSector]
 
     mov word [RootDirSize], ax
+
+    ; You little ******, I forgot about you and nothing worked
+    ; add word [FirstDataSector], ax
 
     ret
 
@@ -168,8 +301,10 @@ ReadDiskError:
 BootDisk: db 0
 RootDirSize: dw 0
 RootDirStartPoint: dw 0
+; FirstDataSector: dw 0
 KernelFileName: db "KERNEL  BIN"
 CurrentCluster: dw 0
+KernelOffset: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0

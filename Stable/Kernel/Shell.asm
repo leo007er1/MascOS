@@ -9,7 +9,7 @@
 ; * Scan code of backspace is 8
 
 
-%include "./Kernel/ShellCommands.asm"
+%include "./Stable/Kernel/ShellCommands.asm"
 
 
 ; Just waits till a key is pressed
@@ -74,6 +74,11 @@ GetCommand:
             call CompareCommand
             cmp ah, byte 0
             je Reboot
+
+            mov di, himom
+            call CompareCommand
+            cmp ah, byte 0
+            je Himom
 
             call CommandNotFound
             call ClearCommandBuffer
@@ -205,4 +210,5 @@ CommandNotFoundMessage: db "Command not found", 0
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
 clear: db "clearr", 0
 reboot: db "reboott", 0
+himom: db "himomm", 0
 help: db "help", 0

@@ -1,26 +1,91 @@
-[org 0x7e00]
 [bits 16]
-[cpu 8086]
-
-; I put this code here because the logo didn't fit in the boot sector
-
-jmp SecondStage
+[cpu 286]
 
 
 
-SecondStage:
-    ; call PrintLogo
+; Macro to print a single character
+; I did this instead of a "function" because I would waste or ax or si
+; *Note: I could just push ax and si to the stack but I don't care for now
+%macro PrintChar 1
+    push ax
 
-    ; ; Waits 4 seconds
-    ; mov cx, 0x2d
-    ; mov dx, 0x4240
-    ; mov ah, 0x86
-    ; int 0x15
+    mov ah, 0x0e ; Teletype mode
+    mov al, %1
+    int 0x10
 
-    ; Jumps to kernel!
-    ; jmp 0x800:0x0
-    jmp $
+    pop ax
 
+%endmacro
+
+
+
+; Prints a given string
+; Input:
+;   si = pointer to string
+PrintString:
+    push ax
+
+    mov ah, 0x0e ; Teletype mode
+
+    .Loop:
+        lodsb ; Loads the current byte into al
+
+        cmp al, byte 0
+        je .Exit
+
+        int 0x10
+
+        jmp .Loop
+
+    .Exit:
+        pop ax
+
+        ret
+
+
+
+; Yup, it does what it says
+PrintNewLine:
+    push ax
+    mov ah, 0x0e ; Teletype mode
+
+    ; Carriage return
+    mov al, 10
+    int 0x10
+
+    ; New line
+    mov al, 13
+    int 0x10
+
+    pop ax
+
+    ret
+
+
+; Yes, I didn't want to call PrintNewLine twice
+PrintNewDoubleLine:
+    push ax
+    mov ah, 0x0e ; Teletype mode
+
+    ; Carriage return
+    mov al, 10
+    int 0x10
+
+    ; New line
+    mov al, 13
+    int 0x10
+
+    ; Carriage return
+    mov al, 10
+    int 0x10
+
+    ; New line
+    mov al, 13
+    int 0x10
+
+    pop ax
+
+    ret
 
 
 
@@ -74,9 +139,6 @@ PrintLogo:
 
 
 
-%include "./Bootloader/Print.asm"
-
-
 
 ; Don't kill me pls
 MascLogoSpace: db "                    ", 0
@@ -86,7 +148,3 @@ MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 10, 13, 0
 MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 10, 13, 10, 13, 0
 WelcomeSpace: db "                         ", 0
 WelcomeMessage: db "Welcome to MascOS! Loading...", 0
-
-
-; Fills the rest of the sector with 0s
-times 512-($-$$) db 0

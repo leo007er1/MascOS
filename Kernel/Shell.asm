@@ -75,11 +75,22 @@ GetCommand:
             cmp ah, byte 0
             je Reboot
 
+            mov di, himom
+            call CompareCommand
+            cmp ah, byte 0
+            je Himom
+
             call CommandNotFound
             call ClearCommandBuffer
 
         .AddNewLine:
             call PrintNewLine
+            jmp .SkipNewLine
+
+        .AddNewDoubleLine:
+            call PrintNewDoubleLine
+            
+        .SkipNewLine:
             mov si, CommandThing
             call PrintString
 
@@ -174,6 +185,7 @@ ClearCommandBuffer:
         je .Exit
 
         mov [CommandBuffer + si], byte 0
+
         dec si
 
         jmp .Loop
@@ -204,5 +216,6 @@ CommandNotFoundMessage: db "Command not found", 0
 
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
 clear: db "clearr", 0
+help: db "helpp", 0
+himom: db "himomm", 0
 reboot: db "reboott", 0
-help: db "help", 0

@@ -4,7 +4,8 @@
 
 
 ; Prints a given string
-; Set si to the pointer of the string
+; Input:
+;   si = pointer to string
 PrintString:
     push ax
     mov ah, 0x0e ; Teletype mode
@@ -42,18 +43,4 @@ PrintNewLine:
 
     ret
 
-
-; Macro to print a single character
-; I did this instead of a "function" because I would waste or ax or si
-; *Note: I could just push ax and si to the stack but I don't care for now
-%macro PrintChar 1
-    push ax
-
-    mov ah, 0x0e ; Teletype mode
-    mov al, %1
-    int 0x10
-
-    pop ax
-
-%endmacro
 
