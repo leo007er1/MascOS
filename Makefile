@@ -15,11 +15,11 @@ BootloaderFlags := -IBootloader/
 KernelFlags := -IKernel/
 
 
-all: CreateBuildDir Main
+all: CreateBuildDir main
 
 
 # Non-stable version
-Main:
+main:
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDir)/Bootloader.asm -o $(BuildDir)/Bootloader.bin
 
@@ -29,23 +29,24 @@ Main:
 
 
 	@echo -e "\n\e[0;32m==> Creating image...\e[0m"
-	rm -r $(BuildDir)/MascOS.flp
+	rm -rf $(BuildDir)/MascOS.flp
 	dd if=/dev/zero of=$(BuildDir)/MascOS.flp bs=512 count=2880
 
 
 	@echo -e "\n\e[0;32m==> Mount and format image...\e[0m"
-	losetup /dev/loop6 $(BuildDir)/MascOS.flp
-	mkdosfs -F 12 /dev/loop6
-	mount /dev/loop6 /mnt -t msdos -o "fat=12"
+	losetup /dev/loop7 $(BuildDir)/MascOS.flp
+	mkdosfs -F 12 /dev/loop7
+	mount /dev/loop7 /mnt -t msdos -o "fat=12"
 
 
-	@echo -e "\n\e[0;32m==> Copying kernel to image...\e[0m"
+	@echo -e "\n\e[0;32m==> Copying kernel and files to image...\e[0m"
 	cp $(BuildDir)/Kernel.bin /mnt
+	cp Test.txt /mnt
 
 
 	@echo -e "\n\e[0;32m==> Unmount image...\e[0m"
 	umount /mnt
-	losetup -d /dev/loop6
+	losetup -d /dev/loop7
 
 	
 	@echo -e "\n\e[0;32m==> Copying bootloader to image...\e[0m"

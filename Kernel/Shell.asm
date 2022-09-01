@@ -70,6 +70,16 @@ GetCommand:
             cmp ah, byte 0
             je Clear
 
+            mov di, ls
+            call CompareCommand
+            cmp ah, byte 0
+            je Ls
+
+            mov di, fetch
+            call CompareCommand
+            cmp ah, byte 0
+            je Fetch
+
             mov di, reboot
             call CompareCommand
             cmp ah, byte 0
@@ -141,7 +151,6 @@ GetCommand:
 ;   - ah = 0 - match, 1 - mismatch
 CompareCommand:
     push si ; Saves command buffer position
-    cld
 
     mov cx, 64 ; How many bytes to compare
     mov si, CommandBuffer
@@ -217,5 +226,7 @@ CommandNotFoundMessage: db "Command not found", 0
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
 clear: db "clearr", 0
 help: db "helpp", 0
+ls: db "lss", 0
+fetch: db "fetchh", 0
 himom: db "himomm", 0
 reboot: db "reboott", 0

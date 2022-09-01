@@ -9,6 +9,7 @@ jmp KernelMain
 
 %include "./Kernel/IO.asm"
 %include "./Kernel/Shell.asm"
+%include "./Kernel/Disk.asm"
 
 
 
@@ -25,6 +26,10 @@ KernelMain:
     mov ax, 0x687b
     mov ss, ax
     mov sp, 0x7bff
+
+    ; Save the disk number
+    mov byte [BootDisk], dl
+    mov word [TotalMemory], cx
 
     cld ; Forward direction for string operations
     sti ; Now you can annoy me
@@ -50,3 +55,7 @@ KernelMain:
 
     cli
     hlt
+
+
+
+TotalMemory: dw 0

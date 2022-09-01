@@ -2,33 +2,26 @@
 [cpu 286]
 
 
-; *NOTES
-; *FAT on disk looks like this:
-; *-------------------------------------------------------------------------------
-; *| Boot sector | Extra reserved sectors | FAT1 | FAT2 | Root dir | Data region |
-; *-------------------------------------------------------------------------------
-;
-; *How to calculate start point of root directory:
-; ReservedSectors + (NumberOfFATs * SectorsPerFAT) = 19
-; *How to calculate the size of the root dir:
-; 32(entry size) * RootDirEntries / BytesPerSector
-;
-; *How to convert LBA to CHS:
-; sector = (LBA % SectorsPerTrack) + 1
-; head = (LBA / SectorsPerTrack) % Heads
-; track = LBA / (SectorsPerTrack * Heads)
-;
-; I saw online that entries with a file attribute of 0xf are "fake" ones to use for long file names
-;
-; *Useful stuff:
-; https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
+; This file basically contains only the stuff needed for the kernel from Disk.asm in the bootloader.
+; Some labels have been modified too, so it's not completely useless.
+
+; ! IMPORTANT
+; ! Since the offset to load files to is relative to the kernel, we need to change the KernelOffset variable according to how many sectors the kernel takes up.
 
 
-; *NOTE: if you change these values make sure to change the ones in Disk.asm file in the kernel
+
 ; We load only the first FAT after the IVT and reserve 4.5KB to it
 FATMemLocation equ 0x500
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x1700
+; Offset that adds up to the one given in when using the LoadFile
+KernelOffset equ 2048 ; 4 sectors
+
+; Stuff from BPB
+RootDirEntries equ 224
+SectorsPerTrack equ 18
+SectorsPerCluster equ 1
+Heads equ 2
 
 
 
@@ -71,48 +64,30 @@ ReadDisk:
 
 
 
-; Loads the first FAT
-LoadFAT:
-    ; FATs are just after the reserved sectors, so...
-    mov ax, word [ReservedSectors]
-    call LbaToChs
+; Searches for an entry in the root dir with the given file name
+; Input:
+;   si = pointer to file name
+; Output:
+;   ah = 0 for success, 1 for error
+;   dx = the given value in si
+SearchFile:
+    push si
 
-    mov bx, FATMemLocation
-    mov al, [SectorsPerFAT] ; Sectors to read
-    call ReadDisk
-
-
-
-; Loads the root directory
-LoadRootDir:
-    call GetRootDirInfo
-
-    ; Get CHS info
-    mov ax, word [RootDirStartPoint]
-    call LbaToChs
-
-    mov bx, RootDirMemLocation
-    mov al, [RootDirSize] ; Sectors to read
-    call ReadDisk
-
-
-
-; Searches for an entry in the root dir with the kernel file name
-SearchKernel:
     mov di, RootDirMemLocation
     mov ax, word [RootDirEntries] ; Counter
+    mov dx, si
 
     .NextEntry:
         push di
         dec ax
 
-        mov si, KernelFileName ; First string
+        mov si, dx ; File name
         mov cx, 11 ; How many bytes to compare
 
         repe cmpsb
 
         pop di ; Get the original value back(current entry start)
-        je LoadKernel
+        je .Exit
 
         add di, 32 ; Every entry is 32 bytes
 
@@ -120,18 +95,25 @@ SearchKernel:
         jne .NextEntry
 
         ; Nope. Nope.
-        jmp ReadDiskError
+        mov ax, 0
+        mov ah, 1 ; Error
+
+    .Exit:
+        pop dx
+        mov ax, 0
+
+        ret
 
 
 
-LoadKernel:
+; Loads a file to the specified buffer
+; Input:
+;   di = pointer to first cluster value in an entry
+;   bx = offset to read to(offset is relative to kernel position)
+LoadFile:
     mov ax, word [di + 0x1a] ; Bytes 26-27 is the first cluster
     mov word [CurrentCluster], ax ; Save it
-
-    ; Where we load the kernel
-    mov ax, 0x7e0
-    mov es, ax
-    mov bx, 0
+    add word [FileOffset], bx
 
     .LoadCluster:
         ; The actual data sector is start at sector 33.
@@ -141,7 +123,7 @@ LoadKernel:
 
         call LbaToChs
 
-        mov bx, word [KernelOffset]
+        mov bx, word [FileOffset]
         mov al, byte [SectorsPerCluster]
         call ReadDisk
 
@@ -176,41 +158,16 @@ LoadKernel:
             mov word [CurrentCluster], ax ; Save the new cluster
 
             cmp ax, word 0xfff ; 0xff8 represent the last cluster
-            jae .KernelLoaded
+            jae .FileLoaded
 
-            add word [KernelOffset], 512 ; Next sector
+            add word [FileOffset], 512 ; Next sector
             jmp .LoadCluster
 
 
-        .KernelLoaded:
-            ; Clears the screen
-            mov ah, 0
-            mov al, 3
-            int 0x10
+        .FileLoaded:
+            mov word [FileOffset], KernelOffset
 
-            ; Should be useful
-            mov dl, byte [BootDisk]
-            mov cx, word [MemoryAvaiable]
-
-            ; Jump to kernel
-            jmp 0x7e0:0x0
-
-
-
-; Resets the disk: moves to the first sector
-; Output:
-;   ah = status (0 if success)
-;   cf = 0 if success, set if not
-ResetDisk:
-    push ax
-
-    mov ah, 0
-    mov dl, [BootDisk]
-    int 0x13
-
-    pop ax
-
-    ret
+            ret
 
 
 
@@ -239,73 +196,40 @@ LbaToChs:
     ret
 
 
-; Gets a cluster number and converts it to LBA
-; Input:
-;   ax = chs address to convert
+
+; Resets the disk: moves to the first sector
 ; Output:
-;   ax = LBA
-ClusterToLba:
-    mov cx, 0
-    mov dx, 0
+;   ah = status (0 if success)
+;   cf = 0 if success, set if not
+ResetDisk:
+    push ax
 
-    sub ax, 2
-    mov cl, byte [SectorsPerCluster]
-    mul cx
+    mov ah, 0
+    mov dl, [BootDisk]
+    int 0x13
 
-    ret
-
-
-
-
-; Gets root dir info and stores it into variables
-GetRootDirInfo:
-    mov ax, 0
-    mov dx, 0
-
-    ; Gets the start point of the root dir
-    mov al, byte [NumberOfFATs]
-    mul word [SectorsPerFAT]
-    add ax, word [ReservedSectors]
-
-    mov word [RootDirStartPoint], ax
-
-    ; Gets the size in sectors of the root dir
-    mov ax, 32 ; Every entry is 32 bytes
-    mul word [RootDirEntries]
-    div word [BytesPerSector]
-
-    mov word [RootDirSize], ax
+    pop ax
 
     ret
-
 
 
 ReadDiskError:
+    call PrintNewDoubleLine
     mov si, ReadDiskErrorMessage
     call PrintString
 
-    ; Wait for key press
-    mov ah, 0
-    int 0x16
-
-    ; Reboot
-    mov ah, 0
-    int 0x19
-
+    jmp ReadDisk.Exit
 
 
 
 
 BootDisk: db 0
-RootDirSize: dw 0
-RootDirStartPoint: dw 0
-KernelFileName: db "KERNEL  BIN"
 CurrentCluster: dw 0
-KernelOffset: dw 0
+FileOffset: dw KernelOffset
 
 ChsSector: db 0
 ChsTrack: db 0
 ChsHead: db 0
 
 ReadAttempts: db 0
-ReadDiskErrorMessage: db 10, 13, "Disk read error", 0
+ReadDiskErrorMessage: db "You idiot, you got a disk read error", 0

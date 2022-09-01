@@ -4,7 +4,7 @@
 
 ## Current situation of the project
 
-The latest version includes FAT12 and the driver works, so to try it out if you want. The "stable" version doesn't have FAT12 and it's there for testing purposes.
+The latest version works fine. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
 ## Why MascOS
 
@@ -20,7 +20,7 @@ After installing these packages open a terminal window and clone this repo with:
 git clone https://github.com/leo007er1/MascOS.git && cd MascOS
 ```
 
-Now you can compile the last stable-usable version of MascOS or the latest one, but currently the stable one has some issue on machines other than mine apparently. If you compile the non-stable version you need sudo permissions because the Makefile mounts an image to /dev/loop6. To compile the "stable" versione run:
+Now you can compile the last stable-usable version of MascOS or the latest one, but currently the stable one has some issue on machines other than mine apparently. If you compile the non-stable version you need sudo permissions because the Makefile mounts an image to /dev/loop7. To compile the "stable" versione run:
 ```sh
 make stable
 ```
@@ -52,3 +52,14 @@ After installing Qemu just execute `Run.sh` with:
 ```sh
 sh Run.sh
 ```
+
+## Troubleshooting
+#### Compiling
+**1. mkdosfs: file Build/MascOS.flp already exists**
+Run this instead of `make`
+```sh
+make main
+```
+
+**2. losetup: Build/MascOS.flp: failed to set up loop device: Device or resource busy**
+Well if you run `lsblk` you can see your devices and where they are mounted. The Makefile uses /dev/loop7 to build the os, so if you see `loop7` you need to change /dev/loop7 to something like /dev/loop8 in the makefile
