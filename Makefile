@@ -8,6 +8,8 @@ Asm := nasm
 BuildDir := Build
 BootloaderDir := Bootloader
 KernelDir := Kernel
+ProgramsDir := Programs
+
 BootloaderDirStable := Stable/Bootloader
 KernelDirStable := Stable/Kernel
 
@@ -24,7 +26,7 @@ main:
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDir)/Bootloader.asm -o $(BuildDir)/Bootloader.bin
 
 
-	@echo -e "\n\e[0;32m==> Compiling kernel...\e[0m"
+	@echo -e "\n\e[0;32m==> Compiling kernel and programs...\e[0m"
 	$(Asm) -f bin $(KernelFlags) $(KernelDir)/Kernel.asm -o $(BuildDir)/Kernel.bin
 
 
@@ -69,10 +71,12 @@ stable: CreateBuildDir
 
 
 
-# If not already there we create the Build directory
+# If not already there we create the Build directory and the .flp image
 CreateBuildDir:
 	@mkdir -p $(BuildDir)/
-	mkdosfs -C $(BuildDir)/MascOS.flp 1440
+
+	test -f $(BuildDir)/MascOS.flp || mkdosfs -C $(BuildDir)/MascOS.flp 1440
+	
 
 
 

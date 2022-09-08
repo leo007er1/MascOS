@@ -15,7 +15,7 @@ FATMemLocation equ 0x500
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x1700
 ; Offset that adds up to the one given in when using the LoadFile
-KernelOffset equ 2048 ; 4 sectors
+KernelOffset equ 3082 ; 6 sectors
 
 ; Stuff from BPB
 RootDirEntries equ 224
@@ -214,7 +214,7 @@ ResetDisk:
 
 
 ReadDiskError:
-    call PrintNewDoubleLine
+    call PrintNewLine
     mov si, ReadDiskErrorMessage
     call PrintString
 

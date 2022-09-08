@@ -7,9 +7,17 @@
 ; *General notes
 ; * Scan code of enter is 13
 ; * Scan code of backspace is 8
+; * Scan code of space is 32
+
 
 
 %include "./Kernel/ShellCommands.asm"
+
+
+
+CommandThingColor equ 0xa
+
+
 
 
 ; Just waits till a key is pressed
@@ -28,10 +36,12 @@
 
 InitShell:
     mov si, InitShellMessage
-    call PrintString
+    xor ah, ah
+    call VgaPrintString
 
     mov si, CommandThing
-    call PrintString
+    mov ah, CommandThingColor
+    call VgaPrintString
 
     ; si will be used for the command buffer position
     xor si, si
@@ -75,6 +85,11 @@ GetCommand:
             cmp ah, byte 0
             je Ls
 
+            mov di, edit
+            call CompareCommand
+            cmp ah, byte 0
+            je Edit
+
             mov di, fetch
             call CompareCommand
             cmp ah, byte 0
@@ -102,6 +117,7 @@ GetCommand:
             
         .SkipNewLine:
             mov si, CommandThing
+            ; mov ah, CommandThingColor
             call PrintString
 
             mov si, 0 ; Resets the command buffer position
@@ -149,6 +165,7 @@ GetCommand:
 ;   - di = pointer to command string
 ; Output:
 ;   - ah = 0 - match, 1 - mismatch
+;   - al = number of attributes
 CompareCommand:
     push si ; Saves command buffer position
 
@@ -160,7 +177,7 @@ CompareCommand:
     jne .Mismatch
 
     ; Oh yes
-    jmp .Match
+    jmp .CheckForAttributes
 
     .Mismatch:
         cmp [si], byte 0
@@ -168,7 +185,7 @@ CompareCommand:
 
         ; If di is 0 then it's a match
         cmp [di], byte 0
-        je CompareCommand.Match
+        je .CheckForAttributes
 
         .GoBack:
             pop si
@@ -176,7 +193,52 @@ CompareCommand:
 
             ret
 
-    .Match:
+    .CheckForAttributes:
+        xor cx, cx
+        xor al, al
+
+        .AttributesLoop:
+            cmp si, byte 32
+            je .Continue
+
+            ; Not a space
+            ; If not a 0 too
+            cmp si, byte 0
+            je CompareCommand.Exit
+
+            add cx, byte 1 ; Character counter of attribute
+
+            .Continue:
+                cmp cx, byte 0
+                je .NoAttribute
+
+                ; Check if next character is space, if yes then increment attribute counter
+                inc si
+                cmp si, byte 32
+                je .EndOfAttribute
+
+                cmp si, byte 0
+                jne .ResetSi
+
+                add al, byte 1
+                dec si
+                jmp .Exit
+
+                .ResetSi:
+                    dec si
+                    jmp .NoAttribute
+
+                .EndOfAttribute:
+                    add al, byte 1
+                    dec si
+
+                .NoAttribute:
+                    inc si
+
+                    jmp .AttributesLoop
+
+
+    .Exit:
         pop si
 
         call ClearCommandBuffer
@@ -227,6 +289,7 @@ CommandNotFoundMessage: db "Command not found", 0
 clear: db "clearr", 0
 help: db "helpp", 0
 ls: db "lss", 0
+edit: db "editt", 0
 fetch: db "fetchh", 0
 himom: db "himomm", 0
 reboot: db "reboott", 0

@@ -8,8 +8,13 @@ jmp KernelMain
 
 
 %include "./Kernel/IO.asm"
+%include "./Kernel/Screen/VGA.asm"
+; %include "./Kernel/Screen/VESA.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
+
+
+LogoColor equ 0xe ; Yellow
 
 
 
@@ -34,6 +39,12 @@ KernelMain:
     cld ; Forward direction for string operations
     sti ; Now you can annoy me
 
+    ; Sets VGA 80x25
+    xor ax, ax
+    mov al, 3
+    int 0x10
+    call VgaClearScreen ; Need to update values
+
     call PrintLogo
 
     ; Waits 4 seconds
@@ -42,10 +53,14 @@ KernelMain:
     mov ah, 0x86
     int 0x15
 
-    ; Clears the screen
-    mov ah, 0
-    mov al, 3
-    int 0x10
+    call GetBdaInfo
+
+    ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
+    mov al, 1
+    out 0x1a, al
+    out 0x21, al
+
+    call VgaClearScreen
 
 
     ; --//  Actual useful stuff  \\--
@@ -58,4 +73,90 @@ KernelMain:
 
 
 
+; --//  Other labels  \\--
+
+
+
+; Gets some useful information about the system fron BDA(Bios Data Area)
+; BDA is at address 0x400. We will use this to determine if to use VGA or VESA
+GetBdaInfo:
+    ; The 0x89 byte contains VGA flags(also 0x8A)
+    add byte [BdaMemAddress], 0x89
+    mov bx, [BdaMemAddress]
+
+    ; Bit 3 tells us if it's monocrome or colored
+    test bx, 4
+    jz .ColorVga
+
+    .ColorVga:
+        mov byte [SystemInfoByte], 1
+
+
+    ret
+
+
+
+; Macro to replace most of the PrintLogo bad code
+; Input:
+;   1 = string to print
+%macro PrintLogoLine 1
+    mov si, MascLogoSpace
+    xor ah, ah
+    call VgaPrintString
+
+    mov si, %1
+    mov ah, LogoColor
+    call VgaPrintString
+
+%endmacro
+
+
+
+; *TRASH CODE WARNING! CONTINUE AT YOUR OWN RISK
+PrintLogo:
+    xor cx, cx
+
+    ; Padding to the top
+    .Loop:
+        cmp cx, byte 5
+        je .Logo
+
+        call VgaNewLine
+        
+        inc cx
+        jmp .Loop
+
+
+    .Logo:
+        ; Now it's way cleaner
+        PrintLogoLine MascLogo
+        PrintLogoLine MascLogo1
+        PrintLogoLine MascLogo2
+        PrintLogoLine MascLogo3
+
+        ; Welcome message
+        mov si, WelcomeSpace
+        xor ah, ah
+        call VgaPrintString
+
+        mov si, WelcomeMessage
+        xor ah, ah
+        call VgaPrintString
+
+        ret
+
+
+
+
+BdaMemAddress: db 0x400
+SystemInfoByte: db 0
 TotalMemory: dw 0
+
+; Logo stuff
+MascLogoSpace: db "                    ", 0
+MascLogo: db 10, 13, "                      \  |                      _ \   ___|", 10, 13, 0
+MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 10, 13, 0
+MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 10, 13, 0
+MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 10, 13, 10, 13, 0
+WelcomeSpace: db "                         ", 0
+WelcomeMessage: db "Welcome to MascOS! Loading...", 0

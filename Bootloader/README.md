@@ -10,3 +10,6 @@ This is a simple 16-bit bootloader that:
  - Searches an entry in the FAT for the kernel and loads it
  - Jumps to the kernel
  - Probably doesn't work
+
+
+Unfortunately the bootloader doesn't work on a real 286. I'll try to solve this.

@@ -1,4 +1,34 @@
 [bits 16]
+[cpu 286]
+
+
+; Macro that "cleans" the below code
+; Input:
+;   1 = string to print
+%macro PrintFetchLogo 1
+    mov si, %1
+    call PrintString
+
+    mov si, FetchSpace
+    call PrintString
+
+%endmacro
+
+; Another macro that "cleans" the code below
+; Input:
+;   1 = string to print
+%macro PrintFetchText 1
+    mov si, %1
+    call PrintString
+
+    call PrintNewLine
+
+%endmacro
+
+
+
+; --//  Actual code for shell commands  \\--
+
 
 
 Help:
@@ -11,10 +41,7 @@ Help:
 
 
 Clear:
-    ; Clears the screen
-    mov ah, 0x0
-    mov al, 0x3
-    int 0x10
+    call VgaClearScreen
 
     ; We don't want an empty line on the top of the screen
     jmp GetCommand.SkipNewLine
@@ -81,48 +108,28 @@ Himom:
 
 
 
-; Why not.
+; Probably the coolest command for now
 ; *NOTE: takes up a bunch of space, maybe too much
 Fetch:
     call PrintNewLine
 
-    ; IT IS THE ONLY WAY, OK?
+    ; Ok now it's a little better
 
-    mov si, FetchLogo0
-    call PrintString
-    mov si, FetchSpace
-    call PrintString
-    mov si, FetchText0
-    call PrintString
+    ; Line with root
+    PrintFetchLogo FetchLogo0
+    PrintFetchText FetchText0
 
-    call PrintNewLine
+    ; Line with os
+    PrintFetchLogo FetchLogo1
+    PrintFetchText FetchText1
 
-    mov si, FetchLogo1
-    call PrintString
-    mov si, FetchSpace
-    call PrintString
-    mov si, FetchText1
-    call PrintString
+    ; Line with ver
+    PrintFetchLogo FetchLogo2
+    PrintFetchText FetchText2
 
-    call PrintNewLine
-
-    mov si, FetchLogo2
-    call PrintString
-    mov si, FetchSpace
-    call PrintString
-    mov si, FetchText2
-    call PrintString
-
-    call PrintNewLine
-
-    mov si, FetchLogo3
-    call PrintString
-    mov si, FetchSpace
-    call PrintString
-    mov si, FetchText3
-    call PrintString
-
-    call PrintNewLine
+    ; Line with ram
+    PrintFetchLogo FetchLogo3
+    PrintFetchText FetchText3
 
     mov si, FetchLogo4
     call PrintString
@@ -136,18 +143,33 @@ Fetch:
 
 
 
-Time:
-    ; http://www.ctyme.com/intr/rb-2271.htm
-    ; Get system time
-    mov ah, 0
-    int 0x1a
+Edit:
+    mov si, EditProgramFileName
+    call SearchFile
 
-    jmp GetCommand.AddNewDoubleLine
+    cmp ah, byte 1
+    je Edit.Error
+
+    ; di already set
+    ; mov bx, 0x400 ; 1KB
+    ; call LoadFile
+    ; jmp 0x400
+    call EditProgram
+
+    .Error:
+        jmp GetCommand.AddNewDoubleLine
 
 
 
-HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  reboot = reboots the system", 10, 13, "  fetch = show system info", 10, 13, "  himom = ???", 0
+; --//  Commands data  \\--
+
+
+
+HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  edit = edit text files", 10, 13, "  reboot = reboots the system", 10, 13, "  fetch = show system info", 10, 13, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0
+EditProgramFileName: db "EDIT    BIN", 0
+
+; Fetch command data
 FetchSpace: db "      ", 0
 FetchText0: db "root", 0
 FetchText1: db "os    MascOS", 0
@@ -160,7 +182,10 @@ FetchLogo3: db "    )U(  _) ", 0
 FetchLogo4: db "   /   \(   ", 0
 FetchLogo5: db "  (/`-'\)   ", 0
 
+; Ls command data
 LsNoFiles: db "No files to list", 0
 LsFileNameSpace: db "    ", 0
 KernelName: db "KERNEL  BIN", 0
 TestName: db "TEST    TXT", 0
+
+%include "./Programs/Edit.asm"

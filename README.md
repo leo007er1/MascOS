@@ -2,9 +2,12 @@
 
 16-bit Real Mode operating system made entirely in Assembly.
 
+![MascOS logo](./Showcase/MascOSLogo.png)
+![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.png)
+
 ## Current situation of the project
 
-The latest version works fine. The "stable" version doesn't have FAT12 and it's there for testing purposes.
+The latest version includes the new VGA driver, but it's only being used in the logo and initial messages of the shell since it's still bugged as hell. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
 ## Why MascOS
 
@@ -55,11 +58,5 @@ sh Run.sh
 
 ## Troubleshooting
 #### Compiling
-**1. mkdosfs: file Build/MascOS.flp already exists**
-Run this instead of `make`
-```sh
-make main
-```
-
-**2. losetup: Build/MascOS.flp: failed to set up loop device: Device or resource busy**
+**1. losetup: Build/MascOS.flp: failed to set up loop device: Device or resource busy**
 Well if you run `lsblk` you can see your devices and where they are mounted. The Makefile uses /dev/loop7 to build the os, so if you see `loop7` you need to change /dev/loop7 to something like /dev/loop8 in the makefile
