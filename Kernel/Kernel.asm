@@ -43,8 +43,15 @@ KernelMain:
     xor ax, ax
     mov al, 3
     int 0x10
+
+    call VgaInit
     call VgaClearScreen ; Need to update values
 
+    ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
+    mov al, 1
+    out 0x1a, al
+    out 0x21, al
+    
     call PrintLogo
 
     ; Waits 4 seconds
@@ -55,10 +62,6 @@ KernelMain:
 
     call GetBdaInfo
 
-    ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
-    mov al, 1
-    out 0x1a, al
-    out 0x21, al
 
     call VgaClearScreen
 
@@ -108,6 +111,9 @@ GetBdaInfo:
     mov ah, LogoColor
     call VgaPrintString
 
+    mov al, 1
+    call VgaNewLine
+
 %endmacro
 
 
@@ -117,14 +123,8 @@ PrintLogo:
     xor cx, cx
 
     ; Padding to the top
-    .Loop:
-        cmp cx, byte 5
-        je .Logo
-
-        call VgaNewLine
-        
-        inc cx
-        jmp .Loop
+    mov al, 6
+    call VgaNewLine
 
 
     .Logo:
@@ -154,9 +154,9 @@ TotalMemory: dw 0
 
 ; Logo stuff
 MascLogoSpace: db "                    ", 0
-MascLogo: db 10, 13, "                      \  |                      _ \   ___|", 10, 13, 0
-MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 10, 13, 0
-MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 10, 13, 0
-MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 10, 13, 10, 13, 0
-WelcomeSpace: db "                         ", 0
+MascLogo: db "  \  |                      _ \   ___|", 0
+MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 0
+MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 0
+MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 0
+WelcomeSpace: db 10, 13, "                         ", 0
 WelcomeMessage: db "Welcome to MascOS! Loading...", 0

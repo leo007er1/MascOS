@@ -17,7 +17,7 @@ BootloaderFlags := -IBootloader/
 KernelFlags := -IKernel/
 
 
-all: CreateBuildDir main
+all: CheckUser CreateBuildDir main
 
 
 # Non-stable version
@@ -28,6 +28,7 @@ main:
 
 	@echo -e "\n\e[0;32m==> Compiling kernel and programs...\e[0m"
 	$(Asm) -f bin $(KernelFlags) $(KernelDir)/Kernel.asm -o $(BuildDir)/Kernel.bin
+	# $(Asm) -f bin $(ProgramsDir)/Edit.asm -o $(BuildDir)/Edit.bin
 
 
 	@echo -e "\n\e[0;32m==> Creating image...\e[0m"
@@ -43,7 +44,7 @@ main:
 
 	@echo -e "\n\e[0;32m==> Copying kernel and files to image...\e[0m"
 	cp $(BuildDir)/Kernel.bin /mnt
-	cp Test.txt /mnt
+	cp Test.txt  /mnt
 
 
 	@echo -e "\n\e[0;32m==> Unmount image...\e[0m"
@@ -58,7 +59,7 @@ main:
 
 
 # Stable version
-stable: CreateBuildDir
+stable: CheckUser CreateBuildDir
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDirStable)/Bootloader.asm -o $(BuildDir)/Bootloader.bin
 
@@ -78,6 +79,12 @@ CreateBuildDir:
 	test -f $(BuildDir)/MascOS.flp || mkdosfs -C $(BuildDir)/MascOS.flp 1440
 	
 
+# Checks if the user has permissions to mount an image
+CheckUser:
+	@if ! [ "$(shell id -u)" = 0 ]; then \
+		echo -e "\e[0;31mYou need to be root to mount the image.\n\e[0mUse \"sudo su\" to give yourself permission or add a \"sudo\" before your command\n"; \
+		exit 1; \
+	fi
 
 
 clean:

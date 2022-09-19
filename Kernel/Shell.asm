@@ -54,9 +54,9 @@ InitShell:
 GetCommand:
     WaitForKeyPress
 
-    cmp al, 13
+    cmp al, byte 13
     je .Enter
-    cmp al, 8
+    cmp al, byte 8
     je .Backspace
 
     ; Saves the character
@@ -109,16 +109,18 @@ GetCommand:
             call ClearCommandBuffer
 
         .AddNewLine:
-            call PrintNewLine
+            mov al, 1
+            call VgaNewLine
             jmp .SkipNewLine
 
         .AddNewDoubleLine:
-            call PrintNewDoubleLine
+            mov al, 2
+            call VgaNewLine
             
         .SkipNewLine:
             mov si, CommandThing
-            ; mov ah, CommandThingColor
-            call PrintString
+            mov ah, CommandThingColor
+            call VgaPrintString
 
             mov si, 0 ; Resets the command buffer position
 
@@ -154,7 +156,7 @@ GetCommand:
 
 
     .Continue:
-        PrintChar al
+        VgaPrintChar al, 0
 
         jmp GetCommand
 
@@ -180,62 +182,62 @@ CompareCommand:
     jmp .CheckForAttributes
 
     .Mismatch:
+        ; If it's a space then check for attributes
+        cmp [si], byte 32
+        je .CheckForAttributes
+
         cmp [si], byte 0
         jne .GoBack
 
         ; If di is 0 then it's a match
         cmp [di], byte 0
-        je .CheckForAttributes
+        je .Exit
 
         .GoBack:
             pop si
             mov ah, 1
+            xor al, al
 
             ret
 
+
     .CheckForAttributes:
-        xor cx, cx
+        mov di, AttributesBuffer
         xor al, al
 
-        .AttributesLoop:
-            cmp si, byte 32
+        .Loop:
+            cmp [si], byte 32 ; 32 is a space
             je .Continue
 
-            ; Not a space
-            ; If not a 0 too
-            cmp si, byte 0
-            je CompareCommand.Exit
+        .CheckForEnd:
+            cmp [si], byte 0
+            je .Exit
 
-            add cx, byte 1 ; Character counter of attribute
+        ; When we encounter a text character in our journey inside
+        ; the roots of the jungle, this happens...
+        .Attribute:
+            cmp [si], byte 32
+            jne .YetAnotherChar
 
-            .Continue:
-                cmp cx, byte 0
-                je .NoAttribute
+            ; END OF ATTRIBUTE
+            inc al
+            inc di
+            mov [di], byte 32 ; We separate attributes with a space
 
-                ; Check if next character is space, if yes then increment attribute counter
+            jmp .Continue
+
+            .YetAnotherChar:
+                ; Moves character to buffer
+                mov bl, byte [si]
+                mov byte [di], bl
+
                 inc si
-                cmp si, byte 32
-                je .EndOfAttribute
+                inc di
+                jmp .CheckForEnd
 
-                cmp si, byte 0
-                jne .ResetSi
-
-                add al, byte 1
-                dec si
-                jmp .Exit
-
-                .ResetSi:
-                    dec si
-                    jmp .NoAttribute
-
-                .EndOfAttribute:
-                    add al, byte 1
-                    dec si
-
-                .NoAttribute:
-                    inc si
-
-                    jmp .AttributesLoop
+        .Continue:
+            inc si
+            jmp .Loop
 
 
     .Exit:
@@ -256,7 +258,6 @@ ClearCommandBuffer:
         je .Exit
 
         mov [CommandBuffer + si], byte 0
-
         dec si
 
         jmp .Loop
@@ -267,10 +268,13 @@ ClearCommandBuffer:
 
 CommandNotFound:
     push si
-    call PrintNewLine
+
+    mov al, 1
+    call VgaNewLine
 
     mov si, CommandNotFoundMessage
-    call PrintString
+    xor ah, ah
+    call VgaPrintString
 
     pop si
     ret
@@ -280,6 +284,7 @@ CommandNotFound:
 
 
 CommandBuffer: times 64 db 0
+AttributesBuffer: times 64 db 0
 
 CommandThing: db "~ ", 0
 InitShellMessage: db "Write 'help' to see command list", 10, 13, 10, 13, 0

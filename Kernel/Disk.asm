@@ -15,7 +15,7 @@ FATMemLocation equ 0x500
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x1700
 ; Offset that adds up to the one given in when using the LoadFile
-KernelOffset equ 3082 ; 6 sectors
+KernelOffset equ 4096 ; 8 sectors
 
 ; Stuff from BPB
 RootDirEntries equ 224
@@ -36,7 +36,7 @@ ReadDisk:
     ; Buffer to read to(ES:BX) is already set
 
     mov ah, 0x02 ; Read please
-    ; Sectors to read are alraady set
+    ; Sectors to read are already set
     mov dl, byte [BootDisk]
 
     ; CHS addressing
@@ -52,7 +52,7 @@ ReadDisk:
     
     ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
     .Check:
-        add [ReadAttempts], byte 1 ; If I use inc I get and error
+        add [ReadAttempts], byte 1 ; If I use inc I get an error
         cmp [ReadAttempts], byte 3
         je ReadDiskError
 
@@ -70,8 +70,12 @@ ReadDisk:
 ; Output:
 ;   ah = 0 for success, 1 for error
 ;   dx = the given value in si
+;   cx = pointer to entry in root dir
 SearchFile:
     push si
+
+    xor ax, ax
+    mov es, ax
 
     mov di, RootDirMemLocation
     mov ax, word [RootDirEntries] ; Counter
@@ -89,18 +93,21 @@ SearchFile:
         pop di ; Get the original value back(current entry start)
         je .Exit
 
-        add di, 32 ; Every entry is 32 bytes
+        add di, word 32 ; Every entry is 32 bytes
 
         cmp ax, word 0
         jne .NextEntry
 
         ; Nope. Nope.
-        mov ax, 0
         mov ah, 1 ; Error
 
     .Exit:
+        mov dx, 0x7e0
+        mov es, dx
+
         pop dx
-        mov ax, 0
+        xor ah, ah
+        mov cx, di
 
         ret
 
@@ -108,12 +115,20 @@ SearchFile:
 
 ; Loads a file to the specified buffer
 ; Input:
-;   di = pointer to first cluster value in an entry
+;   di = pointer to entry in root dir
 ;   bx = offset to read to(offset is relative to kernel position)
 LoadFile:
-    mov ax, word [di + 0x1a] ; Bytes 26-27 is the first cluster
+    xor ax, ax
+    mov es, ax
+    add di, word 0x1a
+    mov ax, word [es:di]
+
+    ; mov ax, word [di + 0x1a] ; Bytes 26-27 is the first cluster
     mov word [CurrentCluster], ax ; Save it
     add word [FileOffset], bx
+
+    mov ax, 0x7e0
+    mov es, ax
 
     .LoadCluster:
         ; The actual data sector is start at sector 33.
@@ -124,7 +139,7 @@ LoadFile:
         call LbaToChs
 
         mov bx, word [FileOffset]
-        mov al, byte [SectorsPerCluster]
+        mov al, byte SectorsPerCluster
         call ReadDisk
 
         ; Calculates next cluster
@@ -157,7 +172,7 @@ LoadFile:
         .Continue:
             mov word [CurrentCluster], ax ; Save the new cluster
 
-            cmp ax, word 0xfff ; 0xff8 represent the last cluster
+            cmp ax, word 0xfff ; 0xfff represent the last cluster
             jae .FileLoaded
 
             add word [FileOffset], 512 ; Next sector

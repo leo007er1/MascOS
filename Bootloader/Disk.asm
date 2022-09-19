@@ -43,7 +43,7 @@ ReadDisk:
     ; Buffer to read to(ES:BX) is already set
 
     mov ah, 0x02 ; Read please
-    ; Sectors to read are alraady set
+    ; Sectors to read are already set
     mov dl, byte [BootDisk]
 
     ; CHS addressing
@@ -59,7 +59,7 @@ ReadDisk:
     
     ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
     .Check:
-        add [ReadAttempts], byte 1 ; If I use inc I get and error
+        add [ReadAttempts], byte 1 ; If I use inc I get an error
         cmp [ReadAttempts], byte 3
         je ReadDiskError
 

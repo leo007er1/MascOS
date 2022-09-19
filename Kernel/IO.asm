@@ -2,21 +2,8 @@
 [cpu 286]
 
 
-
-; Macro to print a single character
-; I did this instead of a "function" because I would waste or ax or si
-; *Note: I could just push ax and si to the stack but I don't care for now
-%macro PrintChar 1
-    push ax
-
-    mov ah, 0x0e ; Teletype mode
-    mov al, %1
-    int 0x10
-
-    pop ax
-
-%endmacro
-
+; *NOTE:
+; * This stuff will only be used in Disk.asm, it will be scrapped later on and replaced by the spanking new VGA driver
 
 
 ; Prints a given string
@@ -61,28 +48,3 @@ PrintNewLine:
 
     ret
 
-
-; Yes, I didn't want to call PrintNewLine twice
-PrintNewDoubleLine:
-    push ax
-    mov ah, 0x0e ; Teletype mode
-
-    ; Carriage return
-    mov al, 10
-    int 0x10
-
-    ; New line
-    mov al, 13
-    int 0x10
-
-    ; Carriage return
-    mov al, 10
-    int 0x10
-
-    ; New line
-    mov al, 13
-    int 0x10
-
-    pop ax
-
-    ret

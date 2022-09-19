@@ -3,11 +3,11 @@
 16-bit Real Mode operating system made entirely in Assembly.
 
 ![MascOS logo](./Showcase/MascOSLogo.png)
-![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.png)
+![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpg)
 
 ## Current situation of the project
 
-The latest version includes the new VGA driver, but it's only being used in the logo and initial messages of the shell since it's still bugged as hell. The "stable" version doesn't have FAT12 and it's there for testing purposes.
+The latest version includes the new VGA driver, althought scrolling is still buggy, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
 ## Why MascOS
 
@@ -40,6 +40,7 @@ make clean
 
 ## Running the operating system
 
+You can use the .flp image provided in the latest release or compile yourself the operating system. For the last one refer to the `Compiling` section of this file.
 It's very simple, but first you need to install Qemu (you need `qemu-system-i386`).
 Arch
 ```sh

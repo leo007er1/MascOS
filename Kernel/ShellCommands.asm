@@ -2,26 +2,39 @@
 [cpu 286]
 
 
+FetchLogoColor equ 0x7
+
+
+
 ; Macro that "cleans" the below code
 ; Input:
 ;   1 = string to print
 %macro PrintFetchLogo 1
     mov si, %1
-    call PrintString
+    mov ah, FetchLogoColor
+    call VgaPrintString
 
     mov si, FetchSpace
-    call PrintString
+    xor ah, ah
+    call VgaPrintString
 
 %endmacro
 
 ; Another macro that "cleans" the code below
 ; Input:
-;   1 = string to print
-%macro PrintFetchText 1
+;   1 = value name to print
+;   2 = value string
+%macro PrintFetchText 2
     mov si, %1
-    call PrintString
+    ; ah already set
+    call VgaPrintString
 
-    call PrintNewLine
+    mov si, %2
+    xor ah, ah
+    call VgaPrintString
+
+    mov al, 1
+    call VgaNewLine
 
 %endmacro
 
@@ -32,9 +45,11 @@
 
 
 Help:
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
     mov si, HelpText
-    call PrintString
+    xor ah, ah
+    call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
@@ -49,7 +64,8 @@ Clear:
 
 ; It's ugly for now, but I might have an idea to just use a loop
 Ls:
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
 
     mov si, KernelName
     call SearchFile
@@ -67,27 +83,24 @@ Ls:
 
     .PrintName:
         mov si, dx
-        call PrintString
+        xor ah, ah
+        call VgaPrintString
 
         mov si, LsFileNameSpace
-        call PrintString
+        xor ah, ah
+        call VgaPrintString
 
         ret
 
     .Skip:
         mov si, LsNoFiles
-        call PrintString
+        mov ah, 0xc
+        call VgaPrintString
 
     .Finished:
         jmp GetCommand.AddNewDoubleLine
         
 
-    ; This one is gonna be heavy
-    ; .Loop:
-    ;     call SearchFile
-
-
-    ;     jmp .Loop
 
 
 
@@ -100,9 +113,11 @@ Reboot:
 
 ; Why not, I mean
 Himom:
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
     mov si, HimomText
-    call PrintString
+    xor ah, ah
+    call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
@@ -111,33 +126,41 @@ Himom:
 ; Probably the coolest command for now
 ; *NOTE: takes up a bunch of space, maybe too much
 Fetch:
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
 
     ; Ok now it's a little better
 
     ; Line with root
     PrintFetchLogo FetchLogo0
-    PrintFetchText FetchText0
+    mov ah, 0xc ; Light red
+    PrintFetchText FetchText0, FetchSpace
 
     ; Line with os
     PrintFetchLogo FetchLogo1
-    PrintFetchText FetchText1
+    mov ah, 0xc ; Light red
+    PrintFetchText FetchLabel1, FetchText1
 
     ; Line with ver
     PrintFetchLogo FetchLogo2
-    PrintFetchText FetchText2
+    mov ah, 0xb ; Light cyan
+    PrintFetchText FetchLabel2, FetchText2
 
     ; Line with ram
     PrintFetchLogo FetchLogo3
-    PrintFetchText FetchText3
+    mov ah, 0xa ; Light green
+    PrintFetchText FetchLabel3, FetchText3
 
     mov si, FetchLogo4
-    call PrintString
+    mov ah, FetchLogoColor
+    call VgaPrintString
 
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
 
     mov si, FetchLogo5
-    call PrintString
+    mov ah, FetchLogoColor
+    call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
@@ -150,10 +173,10 @@ Edit:
     cmp ah, byte 1
     je Edit.Error
 
-    ; di already set
     ; mov bx, 0x400 ; 1KB
+    ; mov di, cx ; Pointer to entry
     ; call LoadFile
-    ; jmp 0x400
+    ; jmp 0x7e0:0x1000
     call EditProgram
 
     .Error:
@@ -172,9 +195,12 @@ EditProgramFileName: db "EDIT    BIN", 0
 ; Fetch command data
 FetchSpace: db "      ", 0
 FetchText0: db "root", 0
-FetchText1: db "os    MascOS", 0
-FetchText2: db "ver   0.1.4", 0
-FetchText3: db "ram   14.25KB / 639KB", 0
+FetchLabel1: db "os    ", 0
+FetchLabel2: db "ver   ", 0
+FetchLabel3: db "ram   ", 0
+FetchText1: db "MascOS", 0
+FetchText2: db "0.1.5", 0
+FetchText3: db "15.09KB / 639KB", 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0
 FetchLogo2: db "  =(_*_)= ( ", 0
