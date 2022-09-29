@@ -1,5 +1,5 @@
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 
 FetchLogoColor equ 0x7
@@ -79,6 +79,12 @@ Ls:
     je .Skip
     call .PrintName
 
+    mov si, EditProgramFileName
+    call SearchFile
+    cmp ah, byte 1
+    je .Skip
+    call .PrintName
+
     jmp .Finished
 
     .PrintName:
@@ -106,7 +112,7 @@ Ls:
 
 ; Note: I could do: jmp 0xffff:0, but I preffer using int 0x19
 Reboot:
-    mov ax, 0
+    xor ax, ax
     int 0x19
 
 
@@ -167,20 +173,63 @@ Fetch:
 
 
 Edit:
-    mov si, EditProgramFileName
-    call SearchFile
+    test al, al
+    je .Error
 
-    cmp ah, byte 1
-    je Edit.Error
+    mov cx, 4 ; How many bytes to compare
+    mov si, AttributesBuffer
+    mov di, TestNamee ; File name
 
-    ; mov bx, 0x400 ; 1KB
-    ; mov di, cx ; Pointer to entry
-    ; call LoadFile
-    ; jmp 0x7e0:0x1000
-    call EditProgram
+    repe cmpsb
+    jne .Mismatch
+
+    jmp .Continue
+
+    .Mismatch:
+        cmp [si], byte 0
+        jne .BadArgument
+
+        ; If di is 0 then it's a match
+        cmp [di], byte 0
+        jne .BadArgument
+
+    .Continue:
+        ; Load program
+        mov si, EditProgramFileName
+        call SearchFile
+
+        cmp ah, byte 1
+        je Edit.Error
+
+        mov bx, 0x400 ; 1KB
+        mov di, cx ; Pointer to entry
+        call LoadFile
+
+        ; Load file to edit
+        mov si, TestName
+        call SearchFile
+
+        cmp ah, byte 1
+        je Edit.Error
+
+        mov bx, 0xc00 ; 3KB
+        mov di, cx ; Pointer to entry
+        call LoadFile
+
+        mov ax, 0x920
+        call RunProgram
+
+    .BadArgument:
+        mov al, 1
+        call VgaNewLine
+
+        mov si, EditProgramBadArgument
+        mov ah, 0xc ; Red
+        call VgaPrintString
 
     .Error:
         jmp GetCommand.AddNewDoubleLine
+
 
 
 
@@ -190,7 +239,6 @@ Edit:
 
 HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  edit = edit text files", 10, 13, "  reboot = reboots the system", 10, 13, "  fetch = show system info", 10, 13, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0
-EditProgramFileName: db "EDIT    BIN", 0
 
 ; Fetch command data
 FetchSpace: db "      ", 0
@@ -199,8 +247,8 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.1.5", 0
-FetchText3: db "15.09KB / 639KB", 0
+FetchText2: db "0.1.6", 0
+FetchText3: db "16.73KB / 639KB", 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0
 FetchLogo2: db "  =(_*_)= ( ", 0
@@ -209,9 +257,12 @@ FetchLogo4: db "   /   \(   ", 0
 FetchLogo5: db "  (/`-'\)   ", 0
 
 ; Ls command data
-LsNoFiles: db "No files to list", 0
-LsFileNameSpace: db "    ", 0
+LsNoFiles: db "File not found", 0
+LsFileNameSpace: db "   ", 0
 KernelName: db "KERNEL  BIN", 0
 TestName: db "TEST    TXT", 0
+TestNamee: db "TEST", 0
 
-%include "./Programs/Edit.asm"
+; Edit program stuff
+EditProgramFileName: db "EDIT    BIN", 0
+EditProgramBadArgument: db "File doesn't exist", 0

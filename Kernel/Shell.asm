@@ -1,4 +1,5 @@
 [bits 16]
+[cpu 8086]
 
 
 ; TODO: Now clear works by using "clearr" as the command string, FIX IT
@@ -10,13 +11,7 @@
 ; * Scan code of space is 32
 
 
-
-%include "./Kernel/ShellCommands.asm"
-
-
-
 CommandThingColor equ 0xa
-
 
 
 
@@ -27,7 +22,6 @@ CommandThingColor equ 0xa
 ;   ah = BIOS scan code
 %macro WaitForKeyPress 0
     xor ax, ax
-    mov ah, 0
 
     int 0x16
 
@@ -66,43 +60,43 @@ GetCommand:
     jmp .Continue
 
     .Enter:
-        cmp si, byte 0
+        test si, si
         je .AddNewLine
 
         .ExecCommand:
             mov di, help
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Help
 
             mov di, clear
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Clear
 
             mov di, ls
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Ls
 
             mov di, edit
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Edit
 
             mov di, fetch
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Fetch
 
             mov di, reboot
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Reboot
 
             mov di, himom
             call CompareCommand
-            cmp ah, byte 0
+            test ah, ah
             je Himom
 
             call CommandNotFound
@@ -122,35 +116,27 @@ GetCommand:
             mov ah, CommandThingColor
             call VgaPrintString
 
-            mov si, 0 ; Resets the command buffer position
+            xor si, si ; Resets the command buffer position
 
             jmp GetCommand
 
 
     .Backspace:
-        cmp si, byte 0
+        test si, si
         je GetCommand
 
         dec si
         mov [CommandBuffer + si], byte 0
 
-        ; Get cursor position
-        mov ah, 3
-        mov bh, 0 ; Page
-        int 0x10
+        ; We decrese CurrentColumn by 2 because then VgaPrintChar increments it
+        sub byte [CurrentColumn], 2
+        sub word [CursorPos], 2
 
-        dec dl ; Go back a column
+        mov al, 32
+        VgaPrintChar al, 0
 
-        ; Set cursor position
-        mov ah, 2
-        mov bh, 0 ; Page
-        int 0x10
-
-        ; Write char at cursor position
-        mov ah, 0xa
-        mov al, 0
-        mov bh, 0 ; Page
-        int 0x10
+        ; Again because VgaPrintChar adds 2 to CursorPos
+        sub word [CursorPos], 2
 
         jmp GetCommand
 
@@ -171,7 +157,7 @@ GetCommand:
 CompareCommand:
     push si ; Saves command buffer position
 
-    mov cx, 64 ; How many bytes to compare
+    mov cx, 32 ; How many bytes to compare
     mov si, CommandBuffer
     ; di is already set
 
@@ -216,12 +202,16 @@ CompareCommand:
         ; When we encounter a text character in our journey inside
         ; the roots of the jungle, this happens...
         .Attribute:
+            cmp [si], byte 0
+            je .AttributeEnd
+
             cmp [si], byte 32
             jne .YetAnotherChar
 
             ; END OF ATTRIBUTE
             inc al
             inc di
+            inc byte [AttributesBufferPos]
             mov [di], byte 32 ; We separate attributes with a space
 
             jmp .Continue
@@ -233,12 +223,16 @@ CompareCommand:
 
                 inc si
                 inc di
-                jmp .CheckForEnd
+                inc byte [AttributesBufferPos]
+                jmp .Attribute
 
         .Continue:
             inc si
             jmp .Loop
 
+
+    .AttributeEnd:
+        inc al
 
     .Exit:
         pop si
@@ -254,7 +248,7 @@ CompareCommand:
 ;   si = command buffer position
 ClearCommandBuffer:
     .Loop:
-        cmp si, byte 0
+        test si, si
         je .Exit
 
         mov [CommandBuffer + si], byte 0
@@ -263,6 +257,28 @@ ClearCommandBuffer:
         jmp .Loop
 
     .Exit:
+        ret
+
+
+
+; Sets every byte in attributes buffer to 0
+ClearAttributesBuffer:
+    push si
+    mov si, [AttributesBufferPos]
+
+    .Loop:
+        test si, si
+        je .Exit
+
+        mov [AttributesBuffer + si], byte 0
+        dec si
+
+        jmp .Loop
+
+    .Exit:
+        pop si
+        mov byte [AttributesBufferPos], 0
+
         ret
 
 
@@ -283,10 +299,11 @@ CommandNotFound:
 
 
 
-CommandBuffer: times 64 db 0
+CommandBuffer: times 32 db 0
 AttributesBuffer: times 64 db 0
+AttributesBufferPos: db 0
 
-CommandThing: db "~ ", 0
+CommandThing: db "-> ", 0
 InitShellMessage: db "Write 'help' to see command list", 10, 13, 10, 13, 0
 CommandNotFoundMessage: db "Command not found", 0
 
@@ -298,3 +315,6 @@ edit: db "editt", 0
 fetch: db "fetchh", 0
 himom: db "himomm", 0
 reboot: db "reboott", 0
+
+
+%include "./Kernel/ShellCommands.asm"

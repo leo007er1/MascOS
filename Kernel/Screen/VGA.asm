@@ -1,5 +1,5 @@
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 
 ; *I need to create a VGA driver because I want colours, beautiful colours, aaahhh
@@ -10,7 +10,7 @@
 
 
 ; Start of vga buffer in memory
-VgaBuffer equ 0xb800 ; Will be moved to gs
+VgaBuffer equ 0xb800 ; Will be moved to es
 
 VgaRows equ 25
 VgaColumns equ 80
@@ -30,6 +30,7 @@ CursorPos: dw 0
 ;   %2 = attribute byte, set to 0 to use default colour
 %macro VgaPrintChar 2
     push bx
+    push es
 
     mov bl, %2
     cmp bl, byte 0
@@ -39,22 +40,26 @@ CursorPos: dw 0
 
     %%Print:
         mov bx, VgaBuffer
-        mov gs, bx
+        mov es, bx
 
         ; Moves character
         mov bx, word [CursorPos]
-        mov byte [gs:bx], %1
+        mov byte [es:bx], %1
 
         ; Moves attribute byte
         inc bx
         mov ah, byte [CurrentColour]
-        mov byte [gs:bx], ah
+        mov byte [es:bx], ah
 
         add word [CursorPos], 2
         inc byte [CurrentColumn]
 
 
     VgaSetCursor
+
+    ; We should set it back to it's original value
+    pop bx
+    mov es, bx
 
     pop bx
 
@@ -174,6 +179,7 @@ VgaInit:
 VgaPrintString:
     push bx
     push ax
+    push es
 
     ; If 0 we just use the default colour
     cmp ah, 0
@@ -194,15 +200,15 @@ VgaPrintString:
         je .CarriageReturn
 
         mov bx, VgaBuffer
-        mov gs, bx
+        mov es, bx
 
         ; The first byte is the character, the second the attribute byte
         mov bx, word [CursorPos]
-        mov byte [gs:bx], al
+        mov byte [es:bx], al
 
         inc bx ; Next byte
         mov cl, byte [CurrentColour]
-        mov byte [gs:bx], cl
+        mov byte [es:bx], cl
 
         add word [CursorPos], 2
         inc byte [CurrentColumn]
@@ -230,6 +236,10 @@ VgaPrintString:
 
 
     .Exit:
+        ; We should set it back to it's original value
+        pop bx
+        mov es, bx
+        
         pop ax
         pop bx
 
@@ -252,6 +262,25 @@ VgaNewLine:
     VgaSetCursor
 
     pop cx
+
+    ret
+
+
+; Goes to a specified line
+; Input:
+;   al = line
+VgaGotoLine:
+    VgaCarriageReturn
+
+    mov byte [CurrentRow], al
+    xor ah, ah
+    xor dx, dx
+    mov cx, 160
+    mul cx
+
+    mov word [CursorPos], ax
+
+    VgaSetCursor
 
     ret
 

@@ -9,6 +9,8 @@
 
 The latest version includes the new VGA driver, althought scrolling is still buggy, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
+If you want to lear how to create program for MascOS check [a relative link](ProgramsDocumentation.md)
+
 ## Why MascOS
 
 It's a learning project. I thought creating an operating system that targets old hardware would be a fun experiment to deal with.
@@ -58,6 +60,10 @@ sh Run.sh
 ```
 
 ## Troubleshooting
+#### OS
+**1. Why does the text in the ** `edit` **program blink?**
+The VGA driver disables bliking to allow to use all 16 colors for background on real VGA hardware. Unfortunately on simulated VGA this doesn't work, and the text blinks.
+
 #### Compiling
 **1. losetup: Build/MascOS.flp: failed to set up loop device: Device or resource busy**
 Well if you run `lsblk` you can see your devices and where they are mounted. The Makefile uses /dev/loop7 to build the os, so if you see `loop7` you need to change /dev/loop7 to something like /dev/loop8 in the makefile

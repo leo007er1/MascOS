@@ -1,13 +1,13 @@
 [org 0x7c00]
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 ; *IMPORTANT STUFF
 ; *FAT stuff: https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
 
 
 
-; Skips the includes
+
 jmp short Start
 nop
 
@@ -59,8 +59,8 @@ Main:
     xor ax, ax
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    ; mov fs, ax
+    ; mov gs, ax
 
     ; Stack setup
     mov ss, ax

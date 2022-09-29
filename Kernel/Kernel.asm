@@ -1,17 +1,32 @@
 [org 0x0]
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 
 cli ; No interruptions please
 jmp KernelMain
 
 
-%include "./Kernel/IO.asm"
+; External programs get here when they finish
+ProgramEndPoint:
+    mov ax, 0x7e0
+    mov ds, ax
+    mov es, ax
+
+    call VgaClearScreen
+    ; call ClearAttributesBuffer
+
+    jmp GetCommand.AddNewDoubleLine
+
+
+
+
+; Kernel files
 %include "./Kernel/Screen/VGA.asm"
-; %include "./Kernel/Screen/VESA.asm"
+%include "./Kernel/Screen/VESA.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
+%include "./Kernel/String.asm"
 
 
 LogoColor equ 0xe ; Yellow
@@ -24,8 +39,8 @@ KernelMain:
     mov ax, 0x7e0 ; Set every segment to where we are
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
+    ; mov fs, ax
+    ; mov gs, ax
 
     ; Sets a 4KB stack below the boot sector
     mov ax, 0x687b
@@ -39,6 +54,13 @@ KernelMain:
     cld ; Forward direction for string operations
     sti ; Now you can annoy me
 
+    ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
+    mov al, 1
+    out 0x1a, al
+    out 0x21, al
+
+    call GetVesaInfo
+
     ; Sets VGA 80x25
     xor ax, ax
     mov al, 3
@@ -47,10 +69,6 @@ KernelMain:
     call VgaInit
     call VgaClearScreen ; Need to update values
 
-    ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
-    mov al, 1
-    out 0x1a, al
-    out 0x21, al
     
     call PrintLogo
 
@@ -61,7 +79,6 @@ KernelMain:
     int 0x15
 
     call GetBdaInfo
-
 
     call VgaClearScreen
 

@@ -1,5 +1,5 @@
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 
 ; This file basically contains only the stuff needed for the kernel from Disk.asm in the bootloader.
@@ -11,9 +11,9 @@
 
 
 ; We load only the first FAT after the IVT and reserve 4.5KB to it
-FATMemLocation equ 0x500
+FATMemLocation equ 0x50
 ; We load the root directory after the FAT and reserve 7KB to it
-RootDirMemLocation equ 0x1700
+RootDirMemLocation equ 0x170
 ; Offset that adds up to the one given in when using the LoadFile
 KernelOffset equ 4096 ; 8 sectors
 
@@ -74,10 +74,10 @@ ReadDisk:
 SearchFile:
     push si
 
-    xor ax, ax
+    mov ax, RootDirMemLocation
     mov es, ax
 
-    mov di, RootDirMemLocation
+    xor di, di
     mov ax, word [RootDirEntries] ; Counter
     mov dx, si
 
@@ -98,8 +98,16 @@ SearchFile:
         cmp ax, word 0
         jne .NextEntry
 
-        ; Nope. Nope.
-        mov ah, 1 ; Error
+        .Error:
+            ; Nope. Nope.
+            mov dx, 0x7e0
+            mov es, dx
+
+            mov ah, 1 ; Error
+            pop dx
+            mov cx, di
+
+            ret
 
     .Exit:
         mov dx, 0x7e0
@@ -118,20 +126,19 @@ SearchFile:
 ;   di = pointer to entry in root dir
 ;   bx = offset to read to(offset is relative to kernel position)
 LoadFile:
-    xor ax, ax
+    mov ax, RootDirMemLocation
     mov es, ax
     add di, word 0x1a
-    mov ax, word [es:di]
+    mov ax, word [es:di] ; Bytes 26-27 is the first cluster
 
-    ; mov ax, word [di + 0x1a] ; Bytes 26-27 is the first cluster
+    mov dx, 0x7e0
+    mov es, dx
+
     mov word [CurrentCluster], ax ; Save it
     add word [FileOffset], bx
 
-    mov ax, 0x7e0
-    mov es, ax
-
     .LoadCluster:
-        ; The actual data sector is start at sector 33.
+        ; The actual data sector starts at sector 33.
         ; Also -2 because the first 2 entries are reserved
         mov ax, word [CurrentCluster]
         add ax, 31
@@ -148,14 +155,22 @@ LoadFile:
         ; CurrentCluster + (CurrentCluster / 2)
         mov ax, word [CurrentCluster]
         mov dx, ax
-        mov cx, ax
-        shr cx, 1 ; Shift a bit to the right, aka divide by 2
-        add ax, cx
+        mov bx, ax
+        mov cl, byte 1
+        shr bx, cl ; Shift a bit to the right, aka divide by 2
+        add ax, bx
 
         ; Get the 12 bits
         mov bx, FATMemLocation
-        add bx, ax
-        mov ax, word [bx]
+        mov es, bx
+
+        mov bx, FATMemLocation
+        mov bx, ax
+        mov ax, word [es:bx]
+
+        ; Would be smart to set ES back
+        mov bx, 0x7e0
+        mov es, bx
 
         ; Checks if the current cluster is even or not
         ; Checks if the first bit is 1 or 0
@@ -163,7 +178,8 @@ LoadFile:
         jz .EvenCluster
 
         .OddCluster:
-            shr ax, 4
+            mov cl, byte 4
+            shr ax, cl
             jmp .Continue
 
         .EvenCluster:
@@ -172,7 +188,7 @@ LoadFile:
         .Continue:
             mov word [CurrentCluster], ax ; Save the new cluster
 
-            cmp ax, word 0xfff ; 0xfff represent the last cluster
+            cmp ax, word 0xff8 ; 0xff8 - 0xfff represent the last cluster
             jae .FileLoaded
 
             add word [FileOffset], 512 ; Next sector
@@ -186,27 +202,48 @@ LoadFile:
 
 
 
+; Executes a program in memory
+; Input:
+;   ax = value to set CS to
+RunProgram:
+    mov ds, ax
+    mov es, ax
+
+    call 0x920:0x0
+
+    mov ax, 0x7e0
+    mov ds, ax
+    mov es, ax
+
+    ret
+
+
+
+
 ; Converts LBA to CHS
 ; Input:
 ;   ax = lba address to convert
 LbaToChs:
     push ax
 
-    ; Sector
-    mov dx, 0
-    div word [SectorsPerTrack]
-    inc dl ; Sectors start from 1
-    mov byte [ChsSector], dl
+    ; Cylinder and head
+    xor dx, dx
+    mov cx, word SectorsPerTrack
+    div cx
 
-    pop ax
+    xor dx, dx
+    mov cx, word Heads
+    div cx
 
-    ; Head and track
-    mov dx, 0
-    div word [SectorsPerTrack]
-    mov dx, 0
-    div word [Heads]
     mov byte [ChsTrack], al
     mov byte [ChsHead], dl
+
+    ; Sectors
+    pop ax
+    mov cx, word SectorsPerTrack
+    div cx
+    inc dl ; Sectors start from 1
+    mov byte [ChsSector], dl
 
     ret
 
@@ -229,9 +266,11 @@ ResetDisk:
 
 
 ReadDiskError:
-    call PrintNewLine
+    mov al, 1
+    call VgaNewLine
     mov si, ReadDiskErrorMessage
-    call PrintString
+    mov ah, 0xc ; Red
+    call VgaPrintString
 
     jmp ReadDisk.Exit
 

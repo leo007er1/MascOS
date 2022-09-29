@@ -1,5 +1,5 @@
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 
 ; *NOTES
@@ -40,6 +40,8 @@ RootDirMemLocation equ 0x1700
 ReadDisk:
     call ResetDisk
 
+    push dx
+
     ; Buffer to read to(ES:BX) is already set
 
     mov ah, 0x02 ; Read please
@@ -67,6 +69,8 @@ ReadDisk:
 
     .Exit:
         mov [ReadAttempts], byte 0
+        pop dx
+
         ret
 
 
@@ -116,7 +120,7 @@ SearchKernel:
 
         add di, 32 ; Every entry is 32 bytes
 
-        cmp ax, word 0
+        test ax, ax
         jne .NextEntry
 
         ; Nope. Nope.
@@ -131,10 +135,10 @@ LoadKernel:
     ; Where we load the kernel
     mov ax, 0x7e0
     mov es, ax
-    mov bx, 0
+    xor bx, bx
 
     .LoadCluster:
-        ; The actual data sector is start at sector 33.
+        ; The actual data sector starts at sector 33.
         ; Also -2 because the first 2 entries are reserved
         mov ax, word [CurrentCluster]
         add ax, 31
@@ -151,9 +155,10 @@ LoadKernel:
         ; CurrentCluster + (CurrentCluster / 2)
         mov ax, word [CurrentCluster]
         mov dx, ax
-        mov cx, ax
-        shr cx, 1 ; Shift a bit to the right, aka divide by 2
-        add ax, cx
+        mov bx, ax
+        mov cl, byte 1
+        shr bx, cl ; Shift a bit to the right, aka divide by 2
+        add ax, bx
 
         ; Get the 12 bits
         mov bx, FATMemLocation
@@ -166,7 +171,8 @@ LoadKernel:
         jz .EvenCluster
 
         .OddCluster:
-            shr ax, 4
+            mov cl, byte 4
+            shr ax, cl
             jmp .Continue
 
         .EvenCluster:
@@ -175,7 +181,7 @@ LoadKernel:
         .Continue:
             mov word [CurrentCluster], ax ; Save the new cluster
 
-            cmp ax, word 0xfff ; 0xff8 represent the last cluster
+            cmp ax, word 0xff8 ; 0xff8 - 0xfff represent the last cluster
             jae .KernelLoaded
 
             add word [KernelOffset], 512 ; Next sector
@@ -184,7 +190,7 @@ LoadKernel:
 
         .KernelLoaded:
             ; Clears the screen
-            mov ah, 0
+            xor ah, ah
             mov al, 3
             int 0x10
 
@@ -204,7 +210,7 @@ LoadKernel:
 ResetDisk:
     push ax
 
-    mov ah, 0
+    xor ah, ah
     mov dl, [BootDisk]
     int 0x13
 
@@ -221,7 +227,7 @@ LbaToChs:
     push ax
 
     ; Sector
-    mov dx, 0
+    xor dx, dx
     div word [SectorsPerTrack]
     inc dl ; Sectors start from 1
     mov byte [ChsSector], dl
@@ -229,9 +235,9 @@ LbaToChs:
     pop ax
 
     ; Head and track
-    mov dx, 0
+    xor dx, dx
     div word [SectorsPerTrack]
-    mov dx, 0
+    xor dx, dx
     div word [Heads]
     mov byte [ChsTrack], al
     mov byte [ChsHead], dl
@@ -245,8 +251,8 @@ LbaToChs:
 ; Output:
 ;   ax = LBA
 ClusterToLba:
-    mov cx, 0
-    mov dx, 0
+    xor cx, cx
+    xor dx, dx
 
     sub ax, 2
     mov cl, byte [SectorsPerCluster]
@@ -259,8 +265,8 @@ ClusterToLba:
 
 ; Gets root dir info and stores it into variables
 GetRootDirInfo:
-    mov ax, 0
-    mov dx, 0
+    xor ax, ax
+    xor dx, dx
 
     ; Gets the start point of the root dir
     mov al, byte [NumberOfFATs]
@@ -281,15 +287,16 @@ GetRootDirInfo:
 
 
 ReadDiskError:
+    pop dx
     mov si, ReadDiskErrorMessage
     call PrintString
 
     ; Wait for key press
-    mov ah, 0
+    xor ah, ah
     int 0x16
 
     ; Reboot
-    mov ah, 0
+    xor ah, ah
     int 0x19
 
 

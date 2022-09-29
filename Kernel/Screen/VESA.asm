@@ -1,5 +1,5 @@
 [bits 16]
-[cpu 286]
+[cpu 8086]
 
 ; *NOTE
 ; * For now we don't support VESA 2.0
@@ -16,29 +16,23 @@
 ; Output:
 ;   
 GetVesaInfo:
-    push es
     mov di, VesaInfo.Data
     mov ax, 0x4f00
     int 0x10
-    pop es
 
     ; If al = 0x4f then function is supported
-    cmp al, 0x4f
+    cmp al, byte 0x4f
     jne .Error
 
     ; Status
-    cmp ah, 0
+    cmp ah, byte 0
     je .Exit
 
     .Error:
-        mov si, .VesaInfoError
-        call PrintString
+        ret
 
     .Exit:
         mov ax, 0xe
-        mov gs, word [VesaInfo.Data + ax]
-        add ax, 2
-        mov bx, word [VesaInfo.Data + ax]
 
         ret
 
@@ -57,6 +51,6 @@ GetVesaModeInfo:
 
 VesaInfo:
     .Signature: db "VESA"
-    .Data: resb 512 - 4
+    .Data: times 508 db 0
 
-VesaModeInfo: resb 256
+VesaModeInfo: times 256 db 0
