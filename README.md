@@ -9,7 +9,7 @@
 
 The latest version includes the new VGA driver, althought scrolling is still buggy, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
-If you want to lear how to create program for MascOS check [a relative link](ProgramsDocumentation.md)
+If you want to lear how to create program for MascOS check [the documentation](ProgramsDocumentation.md)
 
 ## Why MascOS
 
