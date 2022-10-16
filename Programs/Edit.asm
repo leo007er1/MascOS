@@ -15,12 +15,11 @@
 
 
 
-
 ProgramEntryPoint:
     jmp EditProgram
 
 
-%include "./Kernel/Screen/VGA.asm"
+
 
 BarsDefaultColour equ 0xf0
 
@@ -39,14 +38,14 @@ BarsDefaultColour equ 0xf0
 
 
 
-; Where the RunProgram label brings us to
 EditProgram:
-    call VgaClearScreen
+    mov ah, byte 6
+    int 0x21
 
-    mov al, byte 24
-    call VgaGotoLine
+    mov ah, byte 5
+    mov cl, byte 24
     mov al, byte BarsDefaultColour
-    call VgaPaintLine
+    int 0x21
 
 
 
@@ -57,70 +56,88 @@ ModeSelector:
 
     cmp al, byte 58 ; 58 is :
     je .EnterCommand
-    cmp al, byte 27 ; Esc
+    cmp al, byte 27
     je .Esc
-    cmp al, byte 13 ; Carriage return
+    cmp al, byte 13
     je .Enter
 
     jmp ModeSelector
 
     .EnterCommand:
-        mov al, byte 58
-        VgaPrintChar al, BarsDefaultColour
+        mov ah, byte 3
+        mov al, byte 24
+        int 0x21
 
-        ; Counter
-        xor si, si
+        xor ah, ah
+        lea si, ModeSelectorText
+        add si, 0x1800
+        mov al, byte BarsDefaultColour
+        int 0x21
 
         .Loop:
             WaitForKeyPress
 
             cmp al, byte 113 ; 113 is q
-            je .YesCharacter
+            je ModeSelector.Esc
             cmp al, byte 119 ; 119 is w
-            je .YesCharacter
+            je .Write
             cmp al, byte 13 ; Carriage return
             je .Enter
 
             jmp .Loop
 
-            .YesCharacter:
-                cmp si, byte 6
-                je .Loop
 
-                inc si
-                VgaPrintChar al, BarsDefaultColour
+            .Write:
+                mov ah, byte 3
+                mov al, byte 23
+                int 0x21
+
+                xor ah, ah
+                lea si, SaveMessage
+                add si, 0x1800
+                mov al, 0xc ; Red
+                int 0x21
+
+                mov ah, byte 3
+                mov al, byte 24
+                int 0x21
 
                 jmp .Loop
 
             .Enter:
-                call VgaClearScreen
+                ; Clears screen and readd the bottom bar
+                mov ah, byte 6
+                int 0x21
 
+                mov ah, byte 3
                 mov al, byte 24
-                call VgaGotoLine
-                mov al, byte BarsDefaultColour
-                call VgaPaintLine
-                mov si, EditBottomBar
-                mov ah, byte BarsDefaultColour
-                call VgaPrintString
+                int 0x21
 
-                mov al, byte 0
-                call VgaGotoLine
+                xor ah, ah
+                lea si, BottomBar
+                add si, 0x1800
+                mov al, byte BarsDefaultColour
+                int 0x21
+
+                mov ah, byte 5
+                mov al, byte BarsDefaultColour
+                mov cl, byte 24
+                int 0x21
+
+                mov ah, byte 3
+                xor al, al
+                int 0x21
 
                 ; Prints the text of the file
-                mov si, 0x800
-                xor ah, ah
-                call VgaPrintString
+                xor ax, ax
+                lea si, 0x2000
+                int 0x22
 
                 jmp TextEdit
 
-    ; Exit and go to shell
+    ; Exit and go back to shell
     .Esc:
-        mov ax, 0x7e0
-        mov bx, 4
-        push ax
-        push bx
-
-        retf
+        jmp 0x7e0:0x4
 
 
 
@@ -135,45 +152,48 @@ TextEdit:
     je .Esc
 
     .NormalCharacter:
-        VgaPrintChar al, 0
+        mov ah, byte 1
+        xor cl, cl
+        int 0x21
+
         jmp TextEdit
 
     .Enter:
-        mov al, 1
-        call VgaNewLine
+        mov ah, byte 2
+        mov al, byte 1
+        int 0x21
 
         jmp TextEdit
 
     .Backspace:
-        cmp [CursorPos], word 0
-        jle TextEdit
-
-        ; We decrese CurrentColumn by 2 because then VgaPrintChar increments it
-        sub byte [CurrentColumn], 2
-        sub word [CursorPos], 2
-
-        mov al, 32
-        VgaPrintChar al, 0
-
-        ; Again because VgaPrintCHar adds 2 to CursorPos
-        sub word [CursorPos], 2
+        mov ah, byte 7
+        int 0x21
 
         jmp TextEdit
 
 
     ; Go to mode selector
     .Esc:
+        mov ah, byte 3
         mov al, byte 24
-        call VgaGotoLine
+        int 0x21
+
+        mov ah, byte 5
         mov al, byte BarsDefaultColour
-        call VgaPaintLine
-        mov si, EditBottomBar
-        mov ah, byte 0xff ; The opposite text color of BarsDefaultColours
-        call VgaPrintString
+        mov cl, byte 24
+        int 0x21
+
+        xor ah, ah
+        lea si, BottomBar
+        add si, 0x1800
+        mov al, byte 0xff ; The opposite text color of BarsDefaultColours
+        int 0x21
 
         jmp ModeSelector
 
 
 
-EditBottomBar: db "Esc: exit edit mode", 0
+BottomBar: db "Esc: exit edit mode", 0
+ModeSelectorText: db "W: save changes  Q: exit program", 0
+SaveMessage: db "Edit can't save files for now :/", 0
 ModeSelectorBuffer: times 6 db 0

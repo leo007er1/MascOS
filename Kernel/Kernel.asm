@@ -9,10 +9,6 @@ jmp KernelMain
 
 ; External programs get here when they finish
 ProgramEndPoint:
-    mov ax, 0x7e0
-    mov ds, ax
-    mov es, ax
-
     call VgaClearScreen
     ; call ClearAttributesBuffer
 
@@ -26,10 +22,16 @@ ProgramEndPoint:
 %include "./Kernel/Screen/VESA.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
+%include "./Kernel/Timer/PIT.asm"
+%include "./Kernel/IO/Sound.asm"
+%include "./Kernel/IO/Serial.asm"
+%include "./Kernel/IO/Parallel.asm"
 %include "./Kernel/String.asm"
+%include "./Kernel/IVT.asm"
 
 
 LogoColor equ 0xe ; Yellow
+BdaMemAddress equ 0x40 ; Divided by 16 because it will be moved to es
 
 
 
@@ -49,17 +51,14 @@ KernelMain:
 
     ; Save the disk number
     mov byte [BootDisk], dl
-    mov word [TotalMemory], cx
 
     cld ; Forward direction for string operations
     sti ; Now you can annoy me
 
     ; Masking interrupt 0x70 and 0x8 by setting bit 0 on I/O ports
-    mov al, 1
+    mov al, byte 1
     out 0x1a, al
     out 0x21, al
-
-    call GetVesaInfo
 
     ; Sets VGA 80x25
     xor ax, ax
@@ -69,6 +68,11 @@ KernelMain:
     call VgaInit
     call VgaClearScreen ; Need to update values
 
+    call GetBdaInfo
+    call SetNewInterrupts
+    call InitSound
+    call SerialInit
+    ; call VesaInit
     
     call PrintLogo
 
@@ -77,8 +81,6 @@ KernelMain:
     mov dx, 0x4240
     mov ah, 0x86
     int 0x15
-
-    call GetBdaInfo
 
     call VgaClearScreen
 
@@ -97,20 +99,42 @@ KernelMain:
 
 
 
-; Gets some useful information about the system fron BDA(Bios Data Area)
-; BDA is at address 0x400. We will use this to determine if to use VGA or VESA
+; Gets some useful information about the system from BDA(Bios Data Area)
+; BDA is at address 0x400
 GetBdaInfo:
-    ; The 0x89 byte contains VGA flags(also 0x8A)
-    add byte [BdaMemAddress], 0x89
-    mov bx, [BdaMemAddress]
+    mov ax, word 0x40
+    mov es, ax
 
-    ; Bit 3 tells us if it's monocrome or colored
-    test bx, 4
-    jz .ColorVga
+    ; Get equipment word
+    mov si, word 0x10
+    mov ax, word [es:si]
+    mov word [BiosEquipmentWord], ax
 
-    .ColorVga:
-        mov byte [SystemInfoByte], 1
+    ; Get I/O address of serial ports
+    xor si, si
+    mov ax, word [es:si]
+    mov word [SerialPorts], ax
+    mov ax, word [es:si + 2]
+    mov word [SerialPorts + 2], ax
+    mov ax, word [es:si + 4]
+    mov word [SerialPorts + 4], ax
 
+    ; Get I/O address of parallel ports
+    mov si, word 8
+    mov ax, word [es:si]
+    mov word [ParallelPorts], ax
+    mov ax, word [es:si + 2]
+    mov word [ParallelPorts + 2], ax
+    mov ax, word [es:si + 4]
+    mov word [ParallelPorts + 4], ax
+
+    ; Get the amount of KB before EBDA
+    mov si, word 0x13
+    mov ax, word [es:si]
+    mov word [TotalMemory], ax
+
+    mov ax, 0x7e0
+    mov es, ax
 
     ret
 
@@ -120,15 +144,15 @@ GetBdaInfo:
 ; Input:
 ;   1 = string to print
 %macro PrintLogoLine 1
-    mov si, MascLogoSpace
-    xor ah, ah
+    lea si, MascLogoSpace
+    xor al, al
     call VgaPrintString
 
     mov si, %1
-    mov ah, LogoColor
+    mov al, LogoColor
     call VgaPrintString
 
-    mov al, 1
+    mov al, byte 1
     call VgaNewLine
 
 %endmacro
@@ -140,7 +164,7 @@ PrintLogo:
     xor cx, cx
 
     ; Padding to the top
-    mov al, 6
+    mov al, byte 6
     call VgaNewLine
 
 
@@ -152,12 +176,12 @@ PrintLogo:
         PrintLogoLine MascLogo3
 
         ; Welcome message
-        mov si, WelcomeSpace
-        xor ah, ah
+        lea si, WelcomeSpace
+        xor al, al
         call VgaPrintString
 
-        mov si, WelcomeMessage
-        xor ah, ah
+        lea si, WelcomeMessage
+        xor al, al
         call VgaPrintString
 
         ret
@@ -165,9 +189,12 @@ PrintLogo:
 
 
 
-BdaMemAddress: db 0x400
-SystemInfoByte: db 0
 TotalMemory: dw 0
+BiosEquipmentWord: dw 0 ; Are there any serial, parallel ports and other stuff
+
+; Ports info
+ParallelPorts: times 3 dw 0
+SerialPorts: times 3 dw 0
 
 ; Logo stuff
 MascLogoSpace: db "                    ", 0

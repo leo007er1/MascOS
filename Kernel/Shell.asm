@@ -29,12 +29,14 @@ CommandThingColor equ 0xa
 
 
 InitShell:
+    call InitShellCommands
+
     mov si, InitShellMessage
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
     mov si, CommandThing
-    mov ah, CommandThingColor
+    mov al, CommandThingColor
     call VgaPrintString
 
     ; si will be used for the command buffer position
@@ -64,40 +66,45 @@ GetCommand:
         je .AddNewLine
 
         .ExecCommand:
-            mov di, help
+            lea di, help
             call CompareCommand
             test ah, ah
             je Help
 
-            mov di, clear
+            lea di, clear
             call CompareCommand
             test ah, ah
             je Clear
 
-            mov di, ls
+            lea di, ls
             call CompareCommand
             test ah, ah
             je Ls
 
-            mov di, edit
+            lea di, edit
             call CompareCommand
             test ah, ah
             je Edit
 
-            mov di, fetch
+            lea di, fetch
             call CompareCommand
             test ah, ah
             je Fetch
 
-            mov di, reboot
+            lea di, reboot
             call CompareCommand
             test ah, ah
             je Reboot
 
-            mov di, himom
+            lea di, himom
             call CompareCommand
             test ah, ah
             je Himom
+
+            lea di, sound
+            call CompareCommand
+            test ah, ah
+            je Sound
 
             call CommandNotFound
             call ClearCommandBuffer
@@ -112,8 +119,8 @@ GetCommand:
             call VgaNewLine
             
         .SkipNewLine:
-            mov si, CommandThing
-            mov ah, CommandThingColor
+            lea si, CommandThing
+            mov al, CommandThingColor
             call VgaPrintString
 
             xor si, si ; Resets the command buffer position
@@ -133,7 +140,7 @@ GetCommand:
         sub word [CursorPos], 2
 
         mov al, 32
-        VgaPrintChar al, 0
+        VgaPrintCharMacro al, 0
 
         ; Again because VgaPrintChar adds 2 to CursorPos
         sub word [CursorPos], 2
@@ -142,7 +149,7 @@ GetCommand:
 
 
     .Continue:
-        VgaPrintChar al, 0
+        VgaPrintCharMacro al, 0
 
         jmp GetCommand
 
@@ -158,7 +165,7 @@ CompareCommand:
     push si ; Saves command buffer position
 
     mov cx, 32 ; How many bytes to compare
-    mov si, CommandBuffer
+    lea si, CommandBuffer
     ; di is already set
 
     repe cmpsb
@@ -289,7 +296,7 @@ CommandNotFound:
     call VgaNewLine
 
     mov si, CommandNotFoundMessage
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
     pop si
@@ -315,6 +322,7 @@ edit: db "editt", 0
 fetch: db "fetchh", 0
 himom: db "himomm", 0
 reboot: db "reboott", 0
+sound: db "soundd", 0
 
 
 %include "./Kernel/ShellCommands.asm"

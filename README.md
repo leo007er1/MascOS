@@ -1,22 +1,37 @@
 # MascOS
-
 16-bit Real Mode operating system made entirely in Assembly.
 
 ![MascOS logo](./Showcase/MascOSLogo.png)
 ![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpg)
 
 ## Current situation of the project
+The latest version includes the new VGA driver, althought scrolling is less buggy than before, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
 
-The latest version includes the new VGA driver, althought scrolling is still buggy, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
-
-If you want to lear how to create program for MascOS check [the documentation](ProgramsDocumentation.md)
+If you want to lear how to create program for MascOS check [the documentation](ProgramsDocumentation.md).
 
 ## Why MascOS
-
 It's a learning project. I thought creating an operating system that targets old hardware would be a fun experiment to deal with.
 
-## Compiling
+## Running the operating system
+You can use the .flp image provided in the latest release or compile yourself the operating system. For the last one refer to the `Compiling` section of this file.
+It's very simple, but first you need to install Qemu (you need `qemu-system-i386`).
 
+Arch
+```sh
+sudo pacman -S qemu-base
+```
+
+Ubuntu/Linux Mint
+```sh
+sudo apt install qemu
+```
+
+After installing Qemu just execute `Run.sh` with:
+```sh
+sh Run.sh
+```
+
+## Compiling
 To compile MascOS you need these packages:
  - Nasm
 
@@ -35,30 +50,11 @@ If you want to compile the latest version run:
 make
 ```
 
-Also if you want to removed the compiled files and the os image run:
+Also if you want to remove the compiled files and the os image run:
 ```sh
 make clean
 ```
 
-## Running the operating system
-
-You can use the .flp image provided in the latest release or compile yourself the operating system. For the last one refer to the `Compiling` section of this file.
-It's very simple, but first you need to install Qemu (you need `qemu-system-i386`).
-
-Arch
-```sh
-sudo pacman -S qemu-base
-```
-
-Ubuntu/Linux Mint
-```sh
-sudo apt install qemu
-```
-
-After installing Qemu just execute `Run.sh` with:
-```sh
-sh Run.sh
-```
 
 ## Troubleshooting
 #### OS

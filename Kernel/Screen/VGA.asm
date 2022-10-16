@@ -5,7 +5,7 @@
 ; *I need to create a VGA driver because I want colours, beautiful colours, aaahhh
 ; *I can't use int 0x10 for this
 ; https://en.wikipedia.org/wiki/BIOS_color_attributes
-; GS will be our "base" from where to add the offset
+; ES will be our "base" from where to add the offset
 
 
 
@@ -28,7 +28,7 @@ CursorPos: dw 0
 ; Input:
 ;   %1 = character to print
 ;   %2 = attribute byte, set to 0 to use default colour
-%macro VgaPrintChar 2
+%macro VgaPrintCharMacro 2
     push bx
     push es
 
@@ -76,7 +76,7 @@ CursorPos: dw 0
     mov byte [CurrentColumn], %1 ; We temporanely store this value here, since I can't directly move it to a register
 
     ; Checks if we need to scroll
-    cmp byte [CurrentRow], 25
+    cmp byte [CurrentRow], 24
     jl %%AddNewLine
 
     sub byte [CurrentRow], %1
@@ -92,7 +92,7 @@ CursorPos: dw 0
         sub word [CursorPos], dx
 
         mov al, byte [CurrentColumn]
-        mov bx, 160
+        mov bx, word 160
         mul bx
 
         add word [CursorPos], ax
@@ -107,7 +107,7 @@ CursorPos: dw 0
 
     ; Yes, I'm too lazy to multiply CurrentColumn by 2
     mov bl, byte [CurrentColumn]
-    mov bh, 0
+    xor bh, bh
     mov ax, word [CursorPos]
     sub ax, bx
     sub ax, bx
@@ -125,12 +125,28 @@ CursorPos: dw 0
     push bx
     push dx
 
-    ; Sets the cursor
-    mov ah, 0x2
-    mov bh, 0 ; Page
-    mov dh, byte [CurrentRow] ; Row
-    mov dl, byte [CurrentColumn] ; Column
-    int 0x10
+    ; Divide CursorPos by 2(because CursorPos is incremented by 2 because we count the attribute byte too)
+    xor dx, dx
+    mov ax, word [CursorPos]
+    mov bx, word 2
+    div bx
+    xchg ax, bx
+
+    mov dx, 0x3d4 ; I/O port
+    mov al, byte 0xf
+    out dx, al
+
+    inc dl
+    mov al, bl
+    out dx, al
+
+    dec dl
+    mov al, byte 0xe
+    out dx, al
+
+    inc dl
+    mov al, bh
+    out dx, al
 
     pop dx
     pop bx
@@ -171,26 +187,85 @@ VgaInit:
     ret
 
 
+; Checks for the correct label to execute
+; Input:
+;   ah = function to run
+VgaIntHandler:
+    cmp ah, byte 0
+    jne .NoPrintString
+    call VgaPrintString
+    jmp .Exit
+
+    .NoPrintString:
+        cmp ah, byte 1
+        jne .NoPrintChar
+        call VgaPrintChar
+        jmp .Exit
+
+    .NoPrintChar:
+        cmp ah, byte 2
+        jne .NoNewLine
+        call VgaNewLine
+        jmp .Exit
+
+    .NoNewLine:
+        cmp ah, byte 3
+        jne .NoGotoLine
+        call VgaGotoLine
+        jmp .Exit
+
+    .NoGotoLine:
+        cmp ah, byte 4
+        jne .NoClearLine
+        call VgaClearLine
+        jmp .Exit
+
+    .NoClearLine:
+        cmp ah, byte 5
+        jne .NoPaintLine
+        call VgaPaintLine
+        jmp .Exit
+
+    .NoPaintLine:
+        cmp ah, byte 6
+        jne .NoClearScreen
+        call VgaClearScreen
+        jmp .Exit
+
+    .NoClearScreen:
+        cmp ah, byte 7
+        jne .Exit
+        call VgaBackspace
+
+    .Exit:
+        ; Tell the PIC we are done with interrupt
+        ; No idea why but let's do it
+        mov al, 0x20
+        out 0x20, al
+
+        iret
+
+
 
 ; Prints a string to the screen by writing manually to the vga buffer
 ; Input:
 ;   si = pointer to string
-;   ah = attribute(foreground and background colour), clear to use default colour
+;   al = attribute(foreground and background colour), clear to use default colour
 VgaPrintString:
     push bx
     push ax
     push es
 
     ; If 0 we just use the default colour
-    cmp ah, 0
+    test al, al
     je .PrintLoop
 
-    mov byte [CurrentColour], ah
+    mov byte [CurrentColour], al
 
     .PrintLoop:
         lodsb ; Loads next character into al
 
-        cmp al, byte 0
+        test al, al
         je .Exit
 
         cmp al, byte 10
@@ -251,6 +326,19 @@ VgaPrintString:
         ret
 
 
+
+; Prints a single character using VgaPrintCharMacro(don't wanna use macro directly)
+; Input:
+;   al = character
+;   cl = colour
+VgaPrintChar:
+    VgaPrintCharMacro al, cl
+
+    ret
+
+
+
+
 ; "Prints" a new line
 ; Input:
 ;   al = number of new lines
@@ -287,7 +375,8 @@ VgaGotoLine:
 
 ; Paints the foreground and background of a line with the given colour
 ; Input:
-;   al = colour
+;   cl = line
+;   al = attribute byte
 VgaPaintLine:
     ; Can't do something like: push word [CursorPos]
     mov bx, word [CursorPos]
@@ -295,27 +384,35 @@ VgaPaintLine:
     mov bl, [CurrentColumn]
     xor bh, bh
     push bx
+    push es
+    push ax
 
-    VgaCarriageReturn
+    ; Calculates the cursor position
+    xor ah, ah
+    mov al, cl
+    xor dx, dx
+    mov bx, word 160
+    mul bx
+    
+    mov word [CursorPos], ax
     mov cx, VgaColumns ; Counter
     add word [CursorPos], 1 ; We select the attribute byte, since after we add 2 to CursorPos it will skip the character byte
+    pop ax
 
     .Loop:
-        cmp cx, 0
-        je .Exit
-
         mov bx, VgaBuffer
-        mov gs, bx
+        mov es, bx
 
         mov bx, word [CursorPos]
-        mov byte [gs:bx], al
+        mov byte [es:bx], al
 
         add word [CursorPos], 2
 
-        dec cx
-        jmp .Loop
+        loop .Loop
 
     .Exit:
+        pop bx
+        mov es, bx
         pop bx
         mov byte [CurrentColumn], bl
         pop bx
@@ -362,10 +459,9 @@ VgaScroll:
 
     mov ah, 0x6
     ; Al is the number of lines to scroll
-    mov bh, 0 ; Attribute byte
+    xor bh, bh ; Attribute byte
     ; Upper left corner
-    mov ch, 0
-    mov cl, 0
+    xor cx, cx
     ; Bottom right corner
     mov dh, VgaRows
     mov dl, VgaColumns
@@ -396,7 +492,7 @@ VgaScroll:
 ; Clears the screen and resets values
 VgaClearScreen:
     ; Clears the screen
-    mov ah, 0x0
+    xor ah, ah
     mov al, 0x3
     int 0x10
 
@@ -405,3 +501,80 @@ VgaClearScreen:
     mov byte [CurrentRow], 0
 
     ret
+
+
+; Clears a single line
+; Input:
+;   al = line
+VgaClearLine:
+    ; Can't do something like: push word [CursorPos]
+    mov bx, word [CursorPos]
+    push bx
+    mov bl, [CurrentColumn]
+    xor bh, bh
+    push bx
+    push es
+
+    ; Calculates the cursor position
+    xor ah, ah
+    xor dx, dx
+    mov bx, word 160
+    mul bx
+
+    mov word [CursorPos], ax
+    mov cx, VgaColumns ; Counter
+    xor ax, ax
+
+    .Loop:
+        mov bx, VgaBuffer
+        mov es, bx
+
+        mov bx, word [CursorPos]
+        mov word [es:bx], ax
+
+        add word [CursorPos], 2
+
+        loop .Loop
+
+    .Exit:
+        pop bx
+        mov es, bx
+        pop bx
+        mov byte [CurrentColumn], bl
+        pop bx
+        mov word [CursorPos], bx
+
+        ret
+
+
+
+; Do what backspace does: delete the previous character
+; I added this because it was needed by Edit program
+VgaBackspace:
+    cmp word [CursorPos], word 0
+    jle .Exit
+
+    ; If we are at the start of the line
+    test byte [CurrentColumn], byte 0
+    jnz .JustColoumn
+
+    mov byte [CurrentColumn], 80
+    dec byte [CurrentRow]
+    jmp .Continue
+
+    .JustColoumn:
+        ; We decrese CurrentColumn by 2 because then VgaPrintChar increments it
+        sub byte [CurrentColumn], 2
+
+    .Continue:
+        sub word [CursorPos], 2
+
+        mov al, byte 32
+        xor cl, cl
+        call VgaPrintChar
+
+        ; Again because VgaPrintCHar adds 2 to CursorPos
+        sub word [CursorPos], 2
+
+    .Exit:
+        ret

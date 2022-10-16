@@ -7,19 +7,16 @@
 ; Converts a number(intiger) to a string
 ; Input:
 ;   ax = number
-; Output:
-;   si = pointer to string
+;   si = pointer to string to output result to
 IntToString:
     ; We divide by 10 till the quotient is 0. If it's 0 then we arrived to the end of the number
-    ; * For now we store the output in a temporany string
 
     push bx
     push cx
     push dx
 
-    mov si, IntToStringOutput
     xor cx, cx ; Counter
-    mov bx, 10
+    mov bx, word 10
 
     .GetRemainders:
         xor dx, dx
@@ -28,7 +25,7 @@ IntToString:
         push dx ; DX is the remainder
         inc cx
 
-        test ax, ax ; If 0
+        test ax, ax ; If not 0
         jnz .GetRemainders
 
 
@@ -48,6 +45,3 @@ IntToString:
     pop bx
 
     ret
-
-
-IntToStringOutput: times 8 db 0

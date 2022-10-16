@@ -15,13 +15,37 @@ FATMemLocation equ 0x50
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x170
 ; Offset that adds up to the one given in when using the LoadFile
-KernelOffset equ 4096 ; 8 sectors
+KernelOffset equ 5120 ; 10 sectors
 
 ; Stuff from BPB
 RootDirEntries equ 224
 SectorsPerTrack equ 18
 SectorsPerCluster equ 1
 Heads equ 2
+
+
+
+; Where int 0x21 brings us to
+; Input:
+;   ah = function to execute
+DiskIntHandler:
+    test ah, ah
+    jnz .NoSearchFile
+    call SearchFile
+    jmp .Exit
+
+    .NoSearchFile:
+        cmp ah, byte 1
+        jne .Exit
+        call LoadFile
+
+
+    .Exit:
+        ; Tell the PIC we are done with interrupt
+        mov al, 0x20
+        out 0x20, al
+
+        iret
 
 
 
@@ -95,8 +119,8 @@ SearchFile:
 
         add di, word 32 ; Every entry is 32 bytes
 
-        cmp ax, word 0
-        jne .NextEntry
+        test ax, ax
+        jnz .NextEntry
 
         .Error:
             ; Nope. Nope.
@@ -202,23 +226,6 @@ LoadFile:
 
 
 
-; Executes a program in memory
-; Input:
-;   ax = value to set CS to
-RunProgram:
-    mov ds, ax
-    mov es, ax
-
-    call 0x920:0x0
-
-    mov ax, 0x7e0
-    mov ds, ax
-    mov es, ax
-
-    ret
-
-
-
 
 ; Converts LBA to CHS
 ; Input:
@@ -256,7 +263,7 @@ LbaToChs:
 ResetDisk:
     push ax
 
-    mov ah, 0
+    xor ah, ah
     mov dl, [BootDisk]
     int 0x13
 

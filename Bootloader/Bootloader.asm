@@ -68,7 +68,8 @@ Main:
 
     sti
 
-    call GetMemoryAvaiable
+    lea si, BootMessage
+    call PrintString
 
     jmp LoadFAT
     call SearchKernel
@@ -77,11 +78,11 @@ Main:
     hlt
 
 
+BootMessage: db "Preparing the couch for kernel...", 0
 
 
 %include "./Bootloader/Print.asm"
 %include "./Bootloader/Disk.asm"
-%include "./Bootloader/Memory.asm"
 
 
 ; Fills the rest of the sector with 0s and boot signature

@@ -121,7 +121,7 @@ SearchKernel:
         add di, 32 ; Every entry is 32 bytes
 
         test ax, ax
-        jne .NextEntry
+        jnz .NextEntry
 
         ; Nope. Nope.
         jmp ReadDiskError
@@ -196,7 +196,6 @@ LoadKernel:
 
             ; Should be useful
             mov dl, byte [BootDisk]
-            mov cx, word [MemoryAvaiable]
 
             ; Jump to kernel
             jmp 0x7e0:0x0

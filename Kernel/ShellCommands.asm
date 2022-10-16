@@ -10,12 +10,12 @@ FetchLogoColor equ 0x7
 ; Input:
 ;   1 = string to print
 %macro PrintFetchLogo 1
-    mov si, %1
-    mov ah, FetchLogoColor
+    lea si, %1
+    mov al, FetchLogoColor
     call VgaPrintString
 
     mov si, FetchSpace
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
 %endmacro
@@ -25,18 +25,32 @@ FetchLogoColor equ 0x7
 ;   1 = value name to print
 ;   2 = value string
 %macro PrintFetchText 2
-    mov si, %1
-    ; ah already set
+    lea si, %1
+    ; al already set
     call VgaPrintString
 
     mov si, %2
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
     mov al, 1
     call VgaNewLine
 
 %endmacro
+
+
+
+; It's ugly to put this into InitShell
+InitShellCommands:
+    ; Converts the amount of ram to text for the fetch command
+    lea si, FetchTextRam
+    mov ax, word [TotalMemory]
+    call IntToString
+    mov byte [si], byte "K"
+    inc si
+    mov byte [si], byte "B"
+
+    ret
 
 
 
@@ -48,7 +62,7 @@ Help:
     mov al, 1
     call VgaNewLine
     mov si, HelpText
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
@@ -89,18 +103,18 @@ Ls:
 
     .PrintName:
         mov si, dx
-        xor ah, ah
+        xor al, al
         call VgaPrintString
 
         mov si, LsFileNameSpace
-        xor ah, ah
+        xor al, al
         call VgaPrintString
 
         ret
 
     .Skip:
         mov si, LsNoFiles
-        mov ah, 0xc
+        mov al, 0xc
         call VgaPrintString
 
     .Finished:
@@ -122,10 +136,20 @@ Himom:
     mov al, 1
     call VgaNewLine
     mov si, HimomText
-    xor ah, ah
+    xor al, al
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
+
+
+
+
+; Mom, why doesn't this work?
+Sound:
+    mov ax, word 1193
+    call PlaySound
+
+    jmp GetCommand.AddNewLine
 
 
 
@@ -139,33 +163,33 @@ Fetch:
 
     ; Line with root
     PrintFetchLogo FetchLogo0
-    mov ah, 0xc ; Light red
+    mov al, 0xc ; Light red
     PrintFetchText FetchText0, FetchSpace
 
     ; Line with os
     PrintFetchLogo FetchLogo1
-    mov ah, 0xc ; Light red
+    mov al, 0xc ; Light red
     PrintFetchText FetchLabel1, FetchText1
 
     ; Line with ver
     PrintFetchLogo FetchLogo2
-    mov ah, 0xb ; Light cyan
+    mov al, 0xb ; Light cyan
     PrintFetchText FetchLabel2, FetchText2
 
     ; Line with ram
     PrintFetchLogo FetchLogo3
-    mov ah, 0xa ; Light green
+    mov al, 0xa ; Light green
     PrintFetchText FetchLabel3, FetchText3
 
-    mov si, FetchLogo4
-    mov ah, FetchLogoColor
+    lea si, FetchLogo4
+    mov al, FetchLogoColor
     call VgaPrintString
 
     mov al, 1
     call VgaNewLine
 
-    mov si, FetchLogo5
-    mov ah, FetchLogoColor
+    lea si, FetchLogo5
+    mov al, FetchLogoColor
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
@@ -195,7 +219,7 @@ Edit:
 
     .Continue:
         ; Load program
-        mov si, EditProgramFileName
+        lea si, EditProgramFileName
         call SearchFile
 
         cmp ah, byte 1
@@ -212,19 +236,20 @@ Edit:
         cmp ah, byte 1
         je Edit.Error
 
+        mov ah, byte 1
         mov bx, 0xc00 ; 3KB
         mov di, cx ; Pointer to entry
-        call LoadFile
+        int 0x22
 
-        mov ax, 0x920
-        call RunProgram
+        ; 0x9600 / 16 = 0x960
+        jmp 0x960:0x0
 
     .BadArgument:
-        mov al, 1
+        mov al, byte 1
         call VgaNewLine
 
-        mov si, EditProgramBadArgument
-        mov ah, 0xc ; Red
+        lea si, EditProgramBadArgument
+        mov al, 0xc ; Red
         call VgaPrintString
 
     .Error:
@@ -247,8 +272,9 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.1.6", 0
-FetchText3: db "16.73KB / 639KB", 0
+FetchText2: db "0.1.7", 0
+FetchText3: db "16.58KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
+FetchTextRam: times 6 db 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0
 FetchLogo2: db "  =(_*_)= ( ", 0
