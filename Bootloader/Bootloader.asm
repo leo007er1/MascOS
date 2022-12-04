@@ -32,7 +32,8 @@ HiddenSectors: dd 0
 LargeSectors: dd 0 ; Sectors per LBA
 
 ; Extended boot record
-DriveNumber: dw 0 ; Should be equal to the value returned in dl
+DriveNumber: db 0 ; Should be equal to the value returned in dl
+ReservedByte: db 0 ; Always 0
 Signature: db 0x29 ; Or 0x28 or 0x29
 VolumeId: dd 0 ; Ignore I you aren't willing to put one
 VolumeLabel: db "MascOS     " ; Anything but must be 11 bytes
@@ -83,6 +84,7 @@ BootMessage: db "Preparing the couch for kernel...", 0
 
 %include "./Bootloader/Print.asm"
 %include "./Bootloader/Disk.asm"
+%include "./Bootloader/Common.inc"
 
 
 ; Fills the rest of the sector with 0s and boot signature

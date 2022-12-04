@@ -32,11 +32,11 @@ InitShell:
     call InitShellCommands
 
     mov si, InitShellMessage
-    xor al, al
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     mov si, CommandThing
-    mov al, CommandThingColor
+    mov al, byte [AccentColour]
     call VgaPrintString
 
     ; si will be used for the command buffer position
@@ -56,7 +56,7 @@ GetCommand:
     je .Backspace
 
     ; Saves the character
-    mov [CommandBuffer + si], al
+    mov byte [CommandBuffer + si], al
     inc si
 
     jmp .Continue
@@ -66,45 +66,53 @@ GetCommand:
         je .AddNewLine
 
         .ExecCommand:
-            lea di, help
+            lea di, helpCmdStr
             call CompareCommand
-            test ah, ah
-            je Help
+            jnc HelpCmd
 
-            lea di, clear
+            lea di, clearCmdStr
             call CompareCommand
-            test ah, ah
-            je Clear
+            jnc ClearCmd
 
-            lea di, ls
+            lea di, lsCmdStr
             call CompareCommand
-            test ah, ah
-            je Ls
+            jnc LsCmd
 
-            lea di, edit
+            lea di, timeCmdStr
             call CompareCommand
-            test ah, ah
-            je Edit
+            jnc TimeCmd
 
-            lea di, fetch
+            lea di, trashVimCmdStr
             call CompareCommand
-            test ah, ah
-            je Fetch
+            jnc TrashVimCmd
 
-            lea di, reboot
+            lea di, fetchCmdStr
             call CompareCommand
-            test ah, ah
-            je Reboot
+            jnc FetchCmd
 
-            lea di, himom
+            lea di, catCmdStr
             call CompareCommand
-            test ah, ah
-            je Himom
+            jnc CatCmd
 
-            lea di, sound
+            lea di, rebootCmdStr
             call CompareCommand
-            test ah, ah
-            je Sound
+            jnc RebootCmd
+
+            lea di, colourCmdStr
+            call CompareCommand
+            jnc ColourCmd
+
+            lea di, himomCmdStr
+            call CompareCommand
+            jnc HimomCmd
+
+            lea di, shutdownCmdStr
+            call CompareCommand
+            jnc ShutdownCmd
+
+            ; lea di, soundCmdStr
+            ; call CompareCommand
+            ; jnc SoundCmd
 
             call CommandNotFound
             call ClearCommandBuffer
@@ -120,7 +128,7 @@ GetCommand:
             
         .SkipNewLine:
             lea si, CommandThing
-            mov al, CommandThingColor
+            mov al, byte [AccentColour]
             call VgaPrintString
 
             xor si, si ; Resets the command buffer position
@@ -130,26 +138,30 @@ GetCommand:
 
     .Backspace:
         test si, si
-        je GetCommand
+        jz GetCommand
 
         dec si
-        mov [CommandBuffer + si], byte 0
+        mov byte [CommandBuffer + si], byte 0
 
         ; We decrese CurrentColumn by 2 because then VgaPrintChar increments it
         sub byte [CurrentColumn], 2
         sub word [CursorPos], 2
 
-        mov al, 32
-        VgaPrintCharMacro al, 0
+        mov al, byte 32
+        mov cl, byte [NormalColour]
+        VgaPrintCharMacro al, cl
 
         ; Again because VgaPrintChar adds 2 to CursorPos
         sub word [CursorPos], 2
+        VgaSetCursor
 
         jmp GetCommand
 
 
     .Continue:
-        VgaPrintCharMacro al, 0
+        mov cl, byte [NormalColour]
+        VgaPrintCharMacro al, cl
+        VgaSetCursor
 
         jmp GetCommand
 
@@ -172,7 +184,7 @@ CompareCommand:
     jne .Mismatch
 
     ; Oh yes
-    jmp .CheckForAttributes
+    jmp .Exit
 
     .Mismatch:
         ; If it's a space then check for attributes
@@ -188,8 +200,8 @@ CompareCommand:
 
         .GoBack:
             pop si
-            mov ah, 1
             xor al, al
+            stc
 
             ret
 
@@ -197,29 +209,32 @@ CompareCommand:
     .CheckForAttributes:
         mov di, AttributesBuffer
         xor al, al
+        dec si
 
         .Loop:
-            cmp [si], byte 32 ; 32 is a space
+            cmp byte [si], byte " "
             je .Continue
 
         .CheckForEnd:
-            cmp [si], byte 0
+            cmp byte [si], byte 0
             je .Exit
 
         ; When we encounter a text character in our journey inside
         ; the roots of the jungle, this happens...
         .Attribute:
-            cmp [si], byte 0
+            cmp byte [si], byte 0
             je .AttributeEnd
 
-            cmp [si], byte 32
-            jne .YetAnotherChar
+            ; cmp byte [si], byte " "
+            ; jne .YetAnotherChar
+            jmp .YetAnotherChar
 
             ; END OF ATTRIBUTE
             inc al
             inc di
-            inc byte [AttributesBufferPos]
-            mov [di], byte 32 ; We separate attributes with a space
+            mov byte [di], byte 0xff ; We separate attributes with 0xff
+            add byte [AttributesBufferPos], byte 2
+            inc di
 
             jmp .Continue
 
@@ -240,14 +255,60 @@ CompareCommand:
 
     .AttributeEnd:
         inc al
+        mov byte [AttributesCounter], al
 
     .Exit:
         pop si
 
         call ClearCommandBuffer
-        xor ah, ah
+        clc
 
         ret
+
+
+
+; Returns in si the pointer in the AttributesBuffer of the selected attribute
+; Input:
+;   al = attribute number
+; Output:
+;   carry flag = set for error, clear for success
+;   si = pointer to attribute in AttributesBuffer
+GetAttribute:
+    ; If al is greater the given number is invalid. Stupid (joking)
+    cmp al, byte [AttributesCounter]
+    jng .CheckForZero
+
+    stc
+    ret
+
+    .CheckForZero:
+        test al, al
+        jnz .FindAttribute
+
+        lea si, AttributesBuffer
+        ret
+
+    .FindAttribute:
+        lea si, AttributesBuffer
+
+        .Loop:
+            test al, al
+            jz .GetOut
+
+            cmp byte [si], byte 0xff
+            je .NextAttribute
+            inc si
+
+            jmp .Loop
+
+            .NextAttribute:
+                dec al
+                jmp .Loop
+
+    .GetOut:
+        clc
+        ret
+
 
 
 ; Sets every byte in the command buffer to 0
@@ -256,9 +317,9 @@ CompareCommand:
 ClearCommandBuffer:
     .Loop:
         test si, si
-        je .Exit
+        jz .Exit
 
-        mov [CommandBuffer + si], byte 0
+        mov byte [CommandBuffer + si], byte 0
         dec si
 
         jmp .Loop
@@ -275,16 +336,17 @@ ClearAttributesBuffer:
 
     .Loop:
         test si, si
-        je .Exit
+        jz .Exit
 
-        mov [AttributesBuffer + si], byte 0
+        mov byte [AttributesBuffer + si], byte 0
         dec si
 
         jmp .Loop
 
     .Exit:
         pop si
-        mov byte [AttributesBufferPos], 0
+        mov byte [AttributesBufferPos], byte 0
+        mov byte [AttributesCounter], byte 0
 
         ret
 
@@ -292,11 +354,11 @@ ClearAttributesBuffer:
 CommandNotFound:
     push si
 
-    mov al, 1
+    mov al, byte 1
     call VgaNewLine
 
-    mov si, CommandNotFoundMessage
-    xor al, al
+    lea si, CommandNotFoundMessage
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     pop si
@@ -309,20 +371,25 @@ CommandNotFound:
 CommandBuffer: times 32 db 0
 AttributesBuffer: times 64 db 0
 AttributesBufferPos: db 0
+AttributesCounter: db 0
 
 CommandThing: db "-> ", 0
 InitShellMessage: db "Write 'help' to see command list", 10, 13, 10, 13, 0
 CommandNotFoundMessage: db "Command not found", 0
 
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
-clear: db "clearr", 0
-help: db "helpp", 0
-ls: db "lss", 0
-edit: db "editt", 0
-fetch: db "fetchh", 0
-himom: db "himomm", 0
-reboot: db "reboott", 0
-sound: db "soundd", 0
+clearCmdStr: db "clearr", 0
+helpCmdStr: db "helpp", 0
+lsCmdStr: db "lss", 0
+trashVimCmdStr: db "editt", 0
+fetchCmdStr: db "fetchh", 0
+himomCmdStr: db "himomm", 0
+rebootCmdStr: db "reboott", 0
+soundCmdStr: db "soundd", 0
+colourCmdStr: db "colourr", 0
+timeCmdStr: db "timee", 0
+catCmdStr: db "catt", 0
+shutdownCmdStr: db "shutdownn", 0
 
 
 %include "./Kernel/ShellCommands.asm"

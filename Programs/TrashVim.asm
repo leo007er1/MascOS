@@ -22,6 +22,9 @@ ProgramEntryPoint:
 
 
 BarsDefaultColour equ 0xf0
+NormalColour: db 0
+AccentColour: db 0
+
 
 
 ; Just waits till a key is pressed
@@ -39,22 +42,59 @@ BarsDefaultColour equ 0xf0
 
 
 EditProgram:
+    push cx
+
+    ; Get colours
+    mov ah, byte 8
+    int 0x21
+    mov word [NormalColour], bx ; Sets AccentColour too
+
+    ; Clear screen
     mov ah, byte 6
     int 0x21
 
+    ; Print file name
+    mov bx, cx ; Get that pointer back
+    mov ah, byte 2
+    lea si, FileName
+    int 0x22
+
+    xor ah, ah
+    mov al, byte [AccentColour]
+    and al, byte 0xfe
+    lea si, EditingMessage
+    int 0x21
+
+    ; Print bottom bar
+    mov ah, byte 3
+    mov al, byte 24
+    int 0x21
+
+    xor ah, ah
+    mov al, byte [NormalColour]
+    lea si, BottomBarModeSelector
+    int 0x21
+
+    ; Paint bottom line
     mov ah, byte 5
     mov cl, byte 24
     mov al, byte BarsDefaultColour
     int 0x21
 
-
+    ; Loads file after this program
+    ; *NOTE:
+    ;* I KNOW that I shouldn't do this, but uff, I'm too lazy to figure out a workaroud fort his
+    pop di
+    mov bx, word 0x400 ; 3KB
+    mov ah, byte 1
+    int 0x22
 
 
 ; Code is very similar to the shell
 ModeSelector:
     WaitForKeyPress
 
-    cmp al, byte 58 ; 58 is :
+    cmp al, byte ":"
     je .EnterCommand
     cmp al, byte 27
     je .Esc
@@ -70,16 +110,15 @@ ModeSelector:
 
         xor ah, ah
         lea si, ModeSelectorText
-        add si, 0x1800
         mov al, byte BarsDefaultColour
         int 0x21
 
         .Loop:
             WaitForKeyPress
 
-            cmp al, byte 113 ; 113 is q
+            cmp al, byte "q"
             je ModeSelector.Esc
-            cmp al, byte 119 ; 119 is w
+            cmp al, byte "w"
             je .Write
             cmp al, byte 13 ; Carriage return
             je .Enter
@@ -92,10 +131,11 @@ ModeSelector:
                 mov al, byte 23
                 int 0x21
 
+                ; Show message
                 xor ah, ah
                 lea si, SaveMessage
-                add si, 0x1800
-                mov al, 0xc ; Red
+                mov al, byte [AccentColour]
+                and al, 0xfc ; Red
                 int 0x21
 
                 mov ah, byte 3
@@ -105,7 +145,7 @@ ModeSelector:
                 jmp .Loop
 
             .Enter:
-                ; Clears screen and readd the bottom bar
+                ; Clears screen and read the bottom bar
                 mov ah, byte 6
                 int 0x21
 
@@ -114,8 +154,7 @@ ModeSelector:
                 int 0x21
 
                 xor ah, ah
-                lea si, BottomBar
-                add si, 0x1800
+                lea si, BottomBarEditMode
                 mov al, byte BarsDefaultColour
                 int 0x21
 
@@ -129,15 +168,16 @@ ModeSelector:
                 int 0x21
 
                 ; Prints the text of the file
-                xor ax, ax
-                lea si, 0x2000
-                int 0x22
+                mov si, 0x400 ; 2KB after this file
+                xor ah, ah
+                mov al, byte [NormalColour]
+                int 0x21
 
                 jmp TextEdit
 
     ; Exit and go back to shell
     .Esc:
-        jmp 0x7e0:0x4
+        int 0x20
 
 
 
@@ -153,7 +193,7 @@ TextEdit:
 
     .NormalCharacter:
         mov ah, byte 1
-        xor cl, cl
+        mov cl, byte [NormalColour]
         int 0x21
 
         jmp TextEdit
@@ -184,8 +224,7 @@ TextEdit:
         int 0x21
 
         xor ah, ah
-        lea si, BottomBar
-        add si, 0x1800
+        lea si, BottomBarEditMode
         mov al, byte 0xff ; The opposite text color of BarsDefaultColours
         int 0x21
 
@@ -193,7 +232,10 @@ TextEdit:
 
 
 
-BottomBar: db "Esc: exit edit mode", 0
+EditingMessage: db 10, 13, "                        Currently editing  "
+FileName: times 12 db 0
+BottomBarModeSelector: db "Press enter to edit  |  Esc to exit program", 0
+BottomBarEditMode: db "Esc: exit edit mode", 0
 ModeSelectorText: db "W: save changes  Q: exit program", 0
 SaveMessage: db "Edit can't save files for now :/", 0
 ModeSelectorBuffer: times 6 db 0

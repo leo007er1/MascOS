@@ -66,7 +66,7 @@ PlaySound:
     pop ax
 
     out 0x42, al
-    xchg al, ah
+    mov al, ah
     out 0x42, al
 
     ; Get the position of speaker from bit 1 of port 0x61 of keyboard controller

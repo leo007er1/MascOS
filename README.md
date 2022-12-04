@@ -5,9 +5,11 @@
 ![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpg)
 
 ## Current situation of the project
-The latest version includes the new VGA driver, althought scrolling is less buggy than before, to "reset" the screen you can just type `clear` and it will go back to normal. The "stable" version doesn't have FAT12 and it's there for testing purposes.
+The latest version includes the new VGA driver, and shouldn't have bugs anymore, since I fixed every one of those I have found. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
 
-If you want to lear how to create program for MascOS check [the documentation](ProgramsDocumentation.md).
+I have tried to boot MascOS with a floppy disk(3.5 inch, 1.44MB) from an external usb floppy drive, and it worked almost flawlessly. It was tested on a Toshiba NB250 laptop.
+
+If you want to learn how to create program for MascOS check [the documentation](ProgramsDocumentation.md).
 
 ## Why MascOS
 It's a learning project. I thought creating an operating system that targets old hardware would be a fun experiment to deal with.
@@ -30,6 +32,8 @@ After installing Qemu just execute `Run.sh` with:
 ```sh
 sh Run.sh
 ```
+
+If you want to run this on real hardware you need a computer with legacy BIOS and not a modern UEFI system, since MascOS aims to run on old hardware, and it will hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
 
 ## Compiling
 To compile MascOS you need these packages:

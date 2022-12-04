@@ -15,8 +15,6 @@
 
 
 
-IntBaseValue equ 0x7e0
-
 
 ; Sets the os own interrupts into the IVT
 SetNewInterrupts:
@@ -35,13 +33,13 @@ SetNewInterrupts:
         add bx, word 2
 
         ; Base
-        mov word [es:bx], word IntBaseValue
+        mov word [es:bx], word KernelSeg
         add bx, word 2
 
         loop .Loop
 
 
-    mov ax, IntBaseValue
+    mov ax, KernelSeg
     mov es, ax
     sti
 
@@ -50,12 +48,6 @@ SetNewInterrupts:
 
 
 IntTable:
-    dw DummyInt ; Int 0x20
+    dw ProgramEndPoint ; Int 0x20
     dw VgaIntHandler ; Int 0x21
     dw DiskIntHandler ; Int 0x22
-
-
-DummyInt:
-
-
-    iret

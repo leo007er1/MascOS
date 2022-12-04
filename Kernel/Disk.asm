@@ -15,7 +15,7 @@ FATMemLocation equ 0x50
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x170
 ; Offset that adds up to the one given in when using the LoadFile
-KernelOffset equ 5120 ; 10 sectors
+KernelOffset equ 6144 ; 12 sectors
 
 ; Stuff from BPB
 RootDirEntries equ 224
@@ -36,9 +36,20 @@ DiskIntHandler:
 
     .NoSearchFile:
         cmp ah, byte 1
-        jne .Exit
+        jne .NoLoadFile
         call LoadFile
+        jmp .Exit
 
+    .NoLoadFile:
+        cmp ah, byte 2
+        jne .NoFileName
+        call GetFileName
+        jmp .Exit
+
+    .NoFileName:
+        cmp ah, byte 3
+        jne .Exit
+        call GetFileSize
 
     .Exit:
         ; Tell the PIC we are done with interrupt
@@ -52,7 +63,7 @@ DiskIntHandler:
 
 ; Reads the disk into the specified buffer in memory
 ; Input:
-;   bx = buffer offset
+;   es:bx = buffer offset
 ;   al = sectors to read
 ReadDisk:
     call ResetDisk
@@ -78,9 +89,9 @@ ReadDisk:
     .Check:
         add [ReadAttempts], byte 1 ; If I use inc I get an error
         cmp [ReadAttempts], byte 3
-        je ReadDiskError
+        je DiskError
 
-        jmp ReadDisk
+        call ReadDisk
 
     .Exit:
         mov [ReadAttempts], byte 0
@@ -88,11 +99,49 @@ ReadDisk:
 
 
 
+; Writes the given buffer to the disk
+; Code is basically the same as ReadDisk
+; Input:
+;   al = number of sectors to write
+;   es:bx = data buffer
+WriteDisk:
+    call ResetDisk
+
+    ; Es:bx is the data buffer
+    mov ah, byte 3
+    ; Al contains sectors to write
+    mov dl, byte [BootDisk]
+
+    ; CHS addressing
+    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
+    mov ch, byte [ChsTrack] ; C (cylinder)
+    mov dh, byte [ChsHead] ; H (head)
+    mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
+
+    stc
+    int 0x13
+    jnc .Exit
+
+    ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
+    .Check:
+        add [ReadAttempts], byte 1 ; If I use inc I get an error
+        cmp [ReadAttempts], byte 3
+        je DiskError
+
+        call WriteDisk
+
+    .Exit:
+        mov [ReadAttempts], byte 0
+        ret
+
+
+
+
 ; Searches for an entry in the root dir with the given file name
 ; Input:
 ;   si = pointer to file name
 ; Output:
-;   ah = 0 for success, 1 for error
+;   carry flag = clear for success, set for error
 ;   dx = the given value in si
 ;   cx = pointer to entry in root dir
 SearchFile:
@@ -124,42 +173,122 @@ SearchFile:
 
         .Error:
             ; Nope. Nope.
-            mov dx, 0x7e0
+            mov dx, KernelSeg
             mov es, dx
 
-            mov ah, 1 ; Error
+            stc
             pop dx
             mov cx, di
 
             ret
 
     .Exit:
-        mov dx, 0x7e0
+        mov dx, KernelSeg
         mov es, dx
 
         pop dx
-        xor ah, ah
         mov cx, di
+        clc
 
         ret
+
+
+
+; Get a files name from the given entry in the root directory
+; Input:
+;   bx = pointer to entry in root directory
+;   ds:si = pointer to string to output name to(12 characters because remember the 0 at the end)
+GetFileName:
+    push cx
+    push dx
+    push es
+
+    mov dx, RootDirMemLocation
+    mov es, dx
+
+    mov cl, byte 11 ; Counter
+
+    .OutputName:
+        test cl, cl
+        jz .End
+
+        mov al, byte [es:bx]
+        mov byte [ds:si], al
+        inc si
+        inc bx
+
+        dec cl
+        jmp .OutputName
+
+    .End:
+        pop dx
+        mov es, dx
+
+        pop dx
+        pop cx
+
+        ret
+
+
+
+; Gets a files size and returns how big it is
+; Input:
+;   bx = pointer to entry in root directory
+; Output:
+;   ax = file size in KB
+GetFileSize:
+    push cx
+    push dx
+    push es
+
+    mov ax, RootDirMemLocation
+    mov es, ax
+    add bx, word 0x1c ; Offset to file size
+
+    ; Gets and transforms the value in KB
+    ; *Note:
+    ; * If I count the other 2 bytes and move them into dx, ax freaks itself up
+    xor dx, dx
+    mov ax, word [es:bx + 2]
+    mov cx, word 1024 ; Size in bytes of a KB
+    div cx
+
+    pop bx
+    mov es, ax
+
+    pop dx
+    pop cx
+
+    ret
 
 
 
 ; Loads a file to the specified buffer
 ; Input:
 ;   di = pointer to entry in root dir
-;   bx = offset to read to(offset is relative to kernel position)
+;   es:bx = offset to read to
 LoadFile:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+
     mov ax, RootDirMemLocation
     mov es, ax
     add di, word 0x1a
     mov ax, word [es:di] ; Bytes 26-27 is the first cluster
 
-    mov dx, 0x7e0
+    pop dx
     mov es, dx
 
+    push es
+    push ds
+    mov dx, word KernelSeg
+    mov ds, dx
+
     mov word [CurrentCluster], ax ; Save it
-    add word [FileOffset], bx
+    mov word [FileOffset], bx
 
     .LoadCluster:
         ; The actual data sector starts at sector 33.
@@ -185,6 +314,7 @@ LoadFile:
         add ax, bx
 
         ; Get the 12 bits
+        push es
         mov bx, FATMemLocation
         mov es, bx
 
@@ -193,7 +323,7 @@ LoadFile:
         mov ax, word [es:bx]
 
         ; Would be smart to set ES back
-        mov bx, 0x7e0
+        pop bx
         mov es, bx
 
         ; Checks if the current cluster is even or not
@@ -220,9 +350,60 @@ LoadFile:
 
 
         .FileLoaded:
-            mov word [FileOffset], KernelOffset
+            mov word [FileOffset], 0
 
+            pop dx
+            mov ds, dx
+            pop dx
+            mov es, dx
+
+            pop dx
+            pop cx
+            pop bx
+            pop ax
             ret
+
+
+
+; Zeroes out the memory
+; Input:
+;   es:bx = offset to start clearing from
+;   al = sectors to clear
+ClearMem:
+    push es
+    push ds
+
+    mov dx, word ProgramSeg
+    mov es, dx
+    mov dx, word KernelSeg
+    mov ds, dx
+
+    xor dx, dx
+    xor ah, ah
+    mov cx, word 512 ; Sector size in bytes
+    mul cx
+
+    xor cx, cx
+
+    .ClearLoop:
+        test ax, ax
+        jz .Exit
+
+        mov word [es:bx], cx
+
+        add bx, word 2
+        sub ax, word 2
+
+        jmp .ClearLoop
+
+    .Exit:
+
+        pop dx
+        mov ds, dx
+        pop dx
+        mov es, dx
+
+        ret
 
 
 
@@ -264,7 +445,7 @@ ResetDisk:
     push ax
 
     xor ah, ah
-    mov dl, [BootDisk]
+    mov dl, byte [BootDisk]
     int 0x13
 
     pop ax
@@ -272,25 +453,25 @@ ResetDisk:
     ret
 
 
-ReadDiskError:
+DiskError:
     mov al, 1
     call VgaNewLine
-    mov si, ReadDiskErrorMessage
+    mov si, DiskErrorMessage
     mov ah, 0xc ; Red
     call VgaPrintString
 
-    jmp ReadDisk.Exit
+    ret
 
 
 
 
 BootDisk: db 0
 CurrentCluster: dw 0
-FileOffset: dw KernelOffset
+FileOffset: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0
 ChsHead: db 0
 
 ReadAttempts: db 0
-ReadDiskErrorMessage: db "You idiot, you got a disk read error", 0
+DiskErrorMessage: db "You idiot, you got a disk read/write error", 0

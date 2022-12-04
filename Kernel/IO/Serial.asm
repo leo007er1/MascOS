@@ -44,7 +44,7 @@ SerialInit:
     mov al, byte 0x80
     out dx, al ; Tell Line control register to enable DLAB bit
 
-    sub dx, word 3
+    mov dx, word [SerialPorts] ; COM1
     mov al, byte 3 ; Divisor
     out dx, al ; Divisor low byte
 
@@ -67,29 +67,29 @@ SerialInit:
     mov al, byte 0xb ; Set RTS, DSR and hardware pin out 2, which enables IRQ
     out dx, al
 
-    mov al, byte 0x1e
-    out dx, al ; Sets loopback mode to test UART?
+    ; mov al, byte 0x1e
+    ; out dx, al ; Sets loopback mode to test UART?
 
-    ; Test serial chip by sending a byte and checking the returned one
-    sub dx, word 4
-    mov al, byte 0xae
+    ; ; Test serial chip by sending a byte and checking the returned one
+    ; sub dx, word 4
+    ; mov al, byte 0xae
 
-    ; Is it the same George?
-    in al, dx
-    cmp al, byte 0xae
-    jne .Error
+    ; ; Is it the same George?
+    ; in al, dx
+    ; cmp al, byte 0xae
+    ; jne .Error
 
-    ; Disables loopback mode with both out pins being used and IRQ
-    add dx, word 4
-    mov al, byte 0x0f
-    out dx, al
+    ; ; Disables loopback mode with both out pins being used and IRQ
+    ; add dx, word 4
+    ; mov al, byte 0x0f
+    ; out dx, al
 
-    xor ah, ah
+    ; xor ah, ah
     ret
 
-    .Error:
-        mov ah, byte 1
-        ret
+    ; .Error:
+    ;     mov ah, byte 1
+    ;     ret
 
     .NoPort:
         mov ah, byte 2
@@ -99,57 +99,51 @@ SerialInit:
 ; Gets a value from serial port when receives signal
 ; Output:
 ;   al = value from serial port
-SerialIn:
+SerialRead:
+    push dx
+    mov dx, word [SerialPorts] ; COM 1
+    add dx, word 5
+
+    ; This loop is boring if we are waiting, right?
     .CheckReceived:
-        call SerialCheckReceived
+        in al, dx
+        and al, byte 1 ; Is there data that can be read?
+        
         test al, al
         jnz .CheckReceived
 
-    mov dx, word 0x3f8
+    ; Wait there's data?!?!!??
+    sub dx, word 5
     in al, dx
 
+    pop dx
     ret
+
 
 
 ; Writes to a serial port
-SerialOut:
+; Input:
+;   al = value to send
+SerialWrite:
+    push dx
     push ax
 
+    mov dx, word [SerialPorts] ; COM 1
+    add dx, word 5
+
+    ; Be annoyed in this loop while the transmit is doing stuff
     .CheckTransmit:
-        call SerialCheckTransmit
+        in al, dx
+        and al, byte 0x20
+
         test al, al
         jnz .CheckTransmit
 
+    ; Yay the transmitter isn't doing anything
     pop ax
-    mov dx, word 0x3f8
-    out dx, al
+    sub dx, word 5
+    out dx, al ; Send the byte
 
+    pop dx
     ret
 
-
-
-; Checks serial port for receive signal
-; Output:
-;   al = receive signal
-SerialCheckReceived:
-    mov dx, word 0x3f8
-    add dx, word 5
-
-    in al, dx
-    and al, byte 1
-
-    ret
-
-
-
-; Checks if the transmit status is clear or not
-; Output:
-;   al = value Line status register
-SerialCheckTransmit:
-    mov dx, word 0x3f8
-    add dx, word 5
-
-    in al, dx
-    and al, byte 0x20
-
-    ret

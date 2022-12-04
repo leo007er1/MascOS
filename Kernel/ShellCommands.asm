@@ -2,20 +2,17 @@
 [cpu 8086]
 
 
-FetchLogoColor equ 0x7
-
-
 
 ; Macro that "cleans" the below code
 ; Input:
 ;   1 = string to print
 %macro PrintFetchLogo 1
     lea si, %1
-    mov al, FetchLogoColor
+    mov al, byte [NormalColour]
     call VgaPrintString
 
-    mov si, FetchSpace
-    xor al, al
+    lea si, FetchSpace
+    mov al, byte [NormalColour]
     call VgaPrintString
 
 %endmacro
@@ -29,8 +26,8 @@ FetchLogoColor equ 0x7
     ; al already set
     call VgaPrintString
 
-    mov si, %2
-    xor al, al
+    lea si, %2
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     mov al, 1
@@ -58,18 +55,19 @@ InitShellCommands:
 
 
 
-Help:
+HelpCmd:
     mov al, 1
     call VgaNewLine
-    mov si, HelpText
-    xor al, al
+
+    lea si, HelpText
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
 
 
-Clear:
+ClearCmd:
     call VgaClearScreen
 
     ; We don't want an empty line on the top of the screen
@@ -77,47 +75,47 @@ Clear:
 
 
 ; It's ugly for now, but I might have an idea to just use a loop
-Ls:
+LsCmd:
     mov al, 1
     call VgaNewLine
 
-    mov si, KernelName
-    call SearchFile
-    cmp ah, byte 1
-    je .Skip
-    call .PrintName
+    mov ax, RootDirMemLocation
+    mov es, ax
+    xor di, di
+    xor cx, cx
 
-    mov si, TestName
-    call SearchFile
-    cmp ah, byte 1
-    je .Skip
-    call .PrintName
+    .CheckAndPrint:
+        cmp byte [es:di], byte 0
+        je .Finished
 
-    mov si, EditProgramFileName
-    call SearchFile
-    cmp ah, byte 1
-    je .Skip
-    call .PrintName
+        ; Copies the file name to LsDummyFileName
+        mov bx, di
+        lea si, LsDummyFileName
+        call GetFileName
 
-    jmp .Finished
+        call .PrintName
+        add di, word 32 ; Next entry
+        inc cx
+
+        jmp .CheckAndPrint
+
 
     .PrintName:
-        mov si, dx
-        xor al, al
+        lea si, LsDummyFileName
+        mov al, byte [NormalColour]
         call VgaPrintString
 
-        mov si, LsFileNameSpace
-        xor al, al
+        lea si, LsFileNameSpace
+        mov al, byte [NormalColour]
         call VgaPrintString
 
         ret
 
-    .Skip:
-        mov si, LsNoFiles
-        mov al, 0xc
-        call VgaPrintString
 
     .Finished:
+        mov ax, KernelSeg
+        mov es, ax
+
         jmp GetCommand.AddNewDoubleLine
         
 
@@ -125,37 +123,153 @@ Ls:
 
 
 ; Note: I could do: jmp 0xffff:0, but I preffer using int 0x19
-Reboot:
+RebootCmd:
     xor ax, ax
     int 0x19
 
 
 
+ShutdownCmd:
+    call ApmSystemShutdown
+
+    jmp GetCommand.AddNewLine
+
+
+
 ; Why not, I mean
-Himom:
+HimomCmd:
     mov al, 1
     call VgaNewLine
-    mov si, HimomText
-    xor al, al
+
+    lea si, HimomText
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
 
 
+; Prints system time and date
+TimeCmd:
+    mov al, byte 1
+    call VgaNewLine
+
+    call CmosGetSystemTime
+
+    ; Hours
+    push ax
+    xor al, al
+    xchg al, ah
+    lea si, TimeString
+    call IntToString
+
+    mov byte [si], byte ":"
+    inc si
+
+    ; Minutes
+    pop ax
+    xor ah, ah
+    call IntToString
+
+    call CmosGetSystemDate
+
+    ; Day
+    push ax
+    xor ah, ah
+    lea si, TimeString + 7
+    call IntToString
+
+    mov byte [si], byte "/"
+    inc si
+
+    ; Month
+    pop ax
+    xor al, al
+    xchg al, ah
+    call IntToString
+
+    mov byte [si], byte "/"
+    inc si
+
+    ; Year
+    mov ax, bx
+    call IntToString
+
+    ; And finally print the whole thing
+    lea si, TimeString
+    mov al, byte [NormalColour]
+    call VgaPrintString
+
+    jmp GetCommand.AddNewLine
+
+
 
 ; Mom, why doesn't this work?
-Sound:
-    mov ax, word 1193
+SoundCmd:
+    mov ax, word 20
     call PlaySound
 
     jmp GetCommand.AddNewLine
 
 
 
+CatCmd:
+    test al, al
+    jz .Error
+
+    ; Checks and gets pointer to entry in just 4 lines, cool!
+    lea si, AttributesBuffer
+    call SearchFile
+    jc .BadArgument
+
+    .Continue:
+        mov bx, word ProgramSeg
+        mov es, bx
+        mov di, cx
+        xor bx, bx
+        call LoadFile
+
+        mov al, byte 1
+        call VgaNewLine
+
+        mov si, word 0x1800
+        mov al, byte [NormalColour]
+        call VgaPrintString
+
+        mov bx, word KernelSeg
+        mov es, bx
+
+        jmp GetCommand.AddNewDoubleLine
+
+    .BadArgument:
+        mov al, byte 1
+        call VgaNewLine
+
+        lea si, TrashVimProgramBadArgument
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+    .Error:
+        jmp GetCommand.AddNewLine
+
+
+
+
+ColourCmd:
+    mov al, byte 0x71
+    mov bl, byte 0x7e
+
+    call VgaPaintScreen
+
+    .BackToShell:
+        jmp GetCommand.AddNewLine
+
+
+
 ; Probably the coolest command for now
 ; *NOTE: takes up a bunch of space, maybe too much
-Fetch:
+FetchCmd:
     mov al, 1
     call VgaNewLine
 
@@ -163,97 +277,68 @@ Fetch:
 
     ; Line with root
     PrintFetchLogo FetchLogo0
-    mov al, 0xc ; Light red
+    mov al, byte [NormalColour] ; Light red
+    and al, 0xfc
     PrintFetchText FetchText0, FetchSpace
 
     ; Line with os
     PrintFetchLogo FetchLogo1
-    mov al, 0xc ; Light red
+    mov al, byte [NormalColour] ; Light red
+    and al, 0xfc
     PrintFetchText FetchLabel1, FetchText1
 
     ; Line with ver
     PrintFetchLogo FetchLogo2
-    mov al, 0xb ; Light cyan
+    mov al, byte [NormalColour] ; Light cyan
+    and al, 0xfb
     PrintFetchText FetchLabel2, FetchText2
 
     ; Line with ram
     PrintFetchLogo FetchLogo3
-    mov al, 0xa ; Light green
+    mov al, byte [NormalColour]
+    and al, 0xfa ; Light green
     PrintFetchText FetchLabel3, FetchText3
 
     lea si, FetchLogo4
-    mov al, FetchLogoColor
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     mov al, 1
     call VgaNewLine
 
     lea si, FetchLogo5
-    mov al, FetchLogoColor
+    mov al, byte [NormalColour]
     call VgaPrintString
 
     jmp GetCommand.AddNewDoubleLine
 
 
 
-Edit:
+TrashVimCmd:
     test al, al
-    je .Error
+    jz .Error
 
-    mov cx, 4 ; How many bytes to compare
-    mov si, AttributesBuffer
-    mov di, TestNamee ; File name
-
-    repe cmpsb
-    jne .Mismatch
-
-    jmp .Continue
-
-    .Mismatch:
-        cmp [si], byte 0
-        jne .BadArgument
-
-        ; If di is 0 then it's a match
-        cmp [di], byte 0
-        jne .BadArgument
+    ; Checks and gets pointer to entry in just 4 lines, cool!
+    lea si, AttributesBuffer
+    call SearchFile
+    jc .BadArgument
 
     .Continue:
-        ; Load program
-        lea si, EditProgramFileName
-        call SearchFile
-
-        cmp ah, byte 1
-        je Edit.Error
-
-        mov bx, 0x400 ; 1KB
-        mov di, cx ; Pointer to entry
-        call LoadFile
-
-        ; Load file to edit
-        mov si, TestName
-        call SearchFile
-
-        cmp ah, byte 1
-        je Edit.Error
-
-        mov ah, byte 1
-        mov bx, 0xc00 ; 3KB
-        mov di, cx ; Pointer to entry
-        int 0x22
-
-        ; 0x9600 / 16 = 0x960
-        jmp 0x960:0x0
+        lea si, TrashVimProgramFileName
+        call LoadProgram
+        jc .Error
 
     .BadArgument:
         mov al, byte 1
         call VgaNewLine
 
-        lea si, EditProgramBadArgument
-        mov al, 0xc ; Red
+        lea si, TrashVimProgramBadArgument
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
         call VgaPrintString
 
     .Error:
-        jmp GetCommand.AddNewDoubleLine
+        jmp GetCommand.AddNewLine
 
 
 
@@ -262,8 +347,11 @@ Edit:
 
 
 
-HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  edit = edit text files", 10, 13, "  reboot = reboots the system", 10, 13, "  fetch = show system info", 10, 13, "  himom = ???", 0
+HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  time = show time and date", 10, 13, "  cat = show file contents", 10, 13, "  edit = edit text files", 10, 13, "  reboot = reboots the system", 10, 13, "  shutdown = shutdown the computer", 10, 13, "  fetch = show system info", 10, 13, "  colour = change screen colours", 10, 13, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0
+
+TimeString: times 16 db 32
+db 0
 
 ; Fetch command data
 FetchSpace: db "      ", 0
@@ -272,8 +360,8 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.1.7", 0
-FetchText3: db "16.58KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
+FetchText2: db "0.2.0", 0
+FetchText3: db "18.11KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
 FetchTextRam: times 6 db 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0
@@ -285,10 +373,8 @@ FetchLogo5: db "  (/`-'\)   ", 0
 ; Ls command data
 LsNoFiles: db "File not found", 0
 LsFileNameSpace: db "   ", 0
-KernelName: db "KERNEL  BIN", 0
-TestName: db "TEST    TXT", 0
-TestNamee: db "TEST", 0
+LsDummyFileName: times 12 db 0
 
-; Edit program stuff
-EditProgramFileName: db "EDIT    BIN", 0
-EditProgramBadArgument: db "File doesn't exist", 0
+; TrashVim program stuff
+TrashVimProgramFileName: db "TRASHVIMBIN", 0
+TrashVimProgramBadArgument: db "File doesn't exist", 0

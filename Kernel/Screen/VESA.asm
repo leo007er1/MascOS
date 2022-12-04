@@ -48,11 +48,11 @@ VesaInit:
         add si, 0x28 ; VesaModeInfo + 40 is the position of the framebuffer pointer
 
         lodsw
-        mov [di], ax
-        add di, 2
+        mov word [di], ax
+        add di, word 2
 
         lodsw
-        mov [di], ax
+        mov word [di], ax
 
     ; Sets a VESA video mode with BIOS
     .SetVesaMode:
@@ -72,8 +72,8 @@ CheckVesaError:
     jne .Error
 
     ; Status
-    cmp ah, byte 0
-    jne .Error
+    test ah, byte 0
+    jnz .Error
 
     .Exit:
         ret
@@ -103,7 +103,7 @@ VesaPutPixel:
         test cl, cl
         jz .Exit
 
-        mov byte [es:bx], 0x6060
+        mov word [es:bx], 0x6060
         add bx, 2
 
         dec cl

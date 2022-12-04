@@ -12,4 +12,4 @@ This is a simple 16-bit bootloader that:
  - Probably doesn't work
 
 
-Unfortunately the bootloader doesn't work on a real 286. I'll try to solve this.
+Apparently the bootloader doesn't work on a real 286. I'll try to solve this.

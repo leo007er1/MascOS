@@ -145,7 +145,7 @@ LoadKernel:
 
         call LbaToChs
 
-        mov bx, word [KernelOffset]
+        mov bx, word [KernelAddress]
         mov al, byte [SectorsPerCluster]
         call ReadDisk
 
@@ -184,7 +184,7 @@ LoadKernel:
             cmp ax, word 0xff8 ; 0xff8 - 0xfff represent the last cluster
             jae .KernelLoaded
 
-            add word [KernelOffset], 512 ; Next sector
+            add word [KernelAddress], 512 ; Next sector
             jmp .LoadCluster
 
 
@@ -307,7 +307,7 @@ RootDirSize: dw 0
 RootDirStartPoint: dw 0
 KernelFileName: db "KERNEL  BIN"
 CurrentCluster: dw 0
-KernelOffset: dw 0
+KernelAddress: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0

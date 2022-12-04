@@ -28,7 +28,7 @@ main:
 
 	@echo -e "\n\e[0;32m==> Compiling kernel and programs...\e[0m"
 	$(Asm) -f bin $(KernelFlags) $(KernelDir)/Kernel.asm -o $(BuildDir)/Kernel.bin
-	$(Asm) -f bin $(ProgramsDir)/Edit.asm -o $(BuildDir)/Edit.bin
+	$(Asm) -f bin $(ProgramsDir)/TrashVim.asm -o $(BuildDir)/TrashVim.bin
 
 
 	@echo -e "\n\e[0;32m==> Creating image...\e[0m"
@@ -44,7 +44,7 @@ main:
 
 	@echo -e "\n\e[0;32m==> Copying kernel and files to image...\e[0m"
 	cp $(BuildDir)/Kernel.bin /mnt
-	cp Test.txt $(BuildDir)/Edit.bin /mnt
+	cp Test.txt Readme.txt $(BuildDir)/TrashVim.bin /mnt
 
 
 	@echo -e "\n\e[0;32m==> Unmount image...\e[0m"
