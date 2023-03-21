@@ -19,11 +19,6 @@ PitSoundReloadValue equ 27 ; Frequency: 44192
 TimerCountdown: dw 0
 
 
-InitPit:
-    
-
-
-    ret
 
 
 
@@ -63,9 +58,11 @@ Irq0Isr:
     ; cmp al, 0x80
     ; jb StopSound
 
-    mov al, byte 1
-    out 0x61, al
+    ; mov al, byte 1
+    ; out 0x61, al
     ; mov al, byte 0x20
     ; out 0x20, al
+    mov al, 0x20
+    out 0x20, al
 
     iret

@@ -36,14 +36,14 @@ InitSound:
 
     xor ax, ax
     mov es, ax
-    mov bx, word 0x7e0
+    mov bx, word KernelSeg
 
     mov word [es:PitIrqOffset], Irq0Isr
     mov word [es:PitIrqOffset + 2], bx
 
     mov es, bx
 
-    call InitPitSound
+    ; call InitPitSound
 
     sti
     ret
@@ -55,18 +55,14 @@ InitSound:
 PlaySound:
     push ax
 
-    ; mov dx, word 74562 ; a
-    ; mov ax, word 188 ; b
-    ; ; BX already set
-    ; div word bx
-
     ; Give the PIT the "stuff"
     mov al, byte ModeCommandRegisterByte
     out 0x43, al
     pop ax
 
     out 0x42, al
-    mov al, ah
+    mov cl, byte 8
+    sar al, cl
     out 0x42, al
 
     ; Get the position of speaker from bit 1 of port 0x61 of keyboard controller
@@ -77,7 +73,7 @@ PlaySound:
     cmp al, dl
     jne .Different
 
-    out 0x61, al
+    ; out 0x61, al
     jmp .End
 
     .Different:
@@ -98,4 +94,4 @@ StopSound:
     ret
 
 
-ModeCommandRegisterByte: db 10110110b
+ModeCommandRegisterByte: db 0xb6

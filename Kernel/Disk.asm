@@ -87,14 +87,14 @@ ReadDisk:
     
     ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
     .Check:
-        add [ReadAttempts], byte 1 ; If I use inc I get an error
-        cmp [ReadAttempts], byte 3
+        add byte [ReadAttempts], byte 1 ; If I use inc I get an error
+        cmp byte [ReadAttempts], byte 3
         je DiskError
 
         call ReadDisk
 
     .Exit:
-        mov [ReadAttempts], byte 0
+        mov byte [ReadAttempts], byte 0
         ret
 
 
@@ -124,16 +124,49 @@ WriteDisk:
 
     ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
     .Check:
-        add [ReadAttempts], byte 1 ; If I use inc I get an error
-        cmp [ReadAttempts], byte 3
+        add byte [ReadAttempts], byte 1 ; If I use inc I get an error
+        cmp byte [ReadAttempts], byte 3
         je DiskError
 
         call WriteDisk
 
     .Exit:
-        mov [ReadAttempts], byte 0
+        mov byte [ReadAttempts], byte 0
         ret
 
+
+
+; Scans the root directory for the first empty entry
+; Output:
+;   di = offset to entry, also saved inside FirstEmptyEntry
+GetFirstEmptyEntry:
+    push ax
+    push si
+    push es
+
+    mov ax, RootDirMemLocation
+    mov es, ax
+    xor si, si
+
+    .CheckEntry:
+        cmp byte [es:si], byte 0
+        jz .FoundIt
+
+        add si, word 32 ; Next entry
+
+        jmp .CheckEntry
+
+
+    .FoundIt:
+        mov word [FirstEmptyEntry], di
+
+        pop ax
+        mov es, ax
+
+        pop si
+        pop ax
+
+        ret
 
 
 
@@ -263,6 +296,25 @@ GetFileSize:
 
 
 
+; Creates a new empty file
+CreateFile:
+    push es
+    push ds
+
+    mov bx, word KernelSeg
+    mov ds, bx
+
+    call GetFirstEmptyEntry
+
+    ; Now let's check for a free cluster in FAT
+    ; TODO: Capire come scrivere nel FAT senza spaccarlo in due
+    ; TODO: e anche come capire di quale cluster si sta parlando
+
+
+    ret
+
+
+
 ; Loads a file to the specified buffer
 ; Input:
 ;   di = pointer to entry in root dir
@@ -303,7 +355,7 @@ LoadFile:
         call ReadDisk
 
         ; Calculates next cluster
-        ; Since the values for the clusters are 12 bits we need to read a two bytes
+        ; Since the values for the clusters are 12 bits we need to read two bytes
         ; and kick off the other 4 bits. We do:
         ; CurrentCluster + (CurrentCluster / 2)
         mov ax, word [CurrentCluster]
@@ -318,7 +370,6 @@ LoadFile:
         mov bx, FATMemLocation
         mov es, bx
 
-        mov bx, FATMemLocation
         mov bx, ax
         mov ax, word [es:bx]
 
@@ -365,45 +416,46 @@ LoadFile:
 
 
 
+; * Do I need to do this?
 ; Zeroes out the memory
 ; Input:
 ;   es:bx = offset to start clearing from
 ;   al = sectors to clear
-ClearMem:
-    push es
-    push ds
+; ClearMem:
+;     push es
+;     push ds
 
-    mov dx, word ProgramSeg
-    mov es, dx
-    mov dx, word KernelSeg
-    mov ds, dx
+;     mov dx, word ProgramSeg
+;     mov es, dx
+;     mov dx, word KernelSeg
+;     mov ds, dx
 
-    xor dx, dx
-    xor ah, ah
-    mov cx, word 512 ; Sector size in bytes
-    mul cx
+;     xor dx, dx
+;     xor ah, ah
+;     mov cx, word 512 ; Sector size in bytes
+;     mul cx
 
-    xor cx, cx
+;     xor cx, cx
 
-    .ClearLoop:
-        test ax, ax
-        jz .Exit
+;     .ClearLoop:
+;         test ax, ax
+;         jz .Exit
 
-        mov word [es:bx], cx
+;         mov word [es:bx], cx
 
-        add bx, word 2
-        sub ax, word 2
+;         add bx, word 2
+;         sub ax, word 2
 
-        jmp .ClearLoop
+;         jmp .ClearLoop
 
-    .Exit:
+;     .Exit:
 
-        pop dx
-        mov ds, dx
-        pop dx
-        mov es, dx
+;         pop dx
+;         mov ds, dx
+;         pop dx
+;         mov es, dx
 
-        ret
+;         ret
 
 
 
@@ -468,6 +520,7 @@ DiskError:
 BootDisk: db 0
 CurrentCluster: dw 0
 FileOffset: dw 0
+FirstEmptyEntry: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0

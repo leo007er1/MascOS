@@ -82,7 +82,6 @@ LsCmd:
     mov ax, RootDirMemLocation
     mov es, ax
     xor di, di
-    xor cx, cx
 
     .CheckAndPrint:
         cmp byte [es:di], byte 0
@@ -95,17 +94,12 @@ LsCmd:
 
         call .PrintName
         add di, word 32 ; Next entry
-        inc cx
 
         jmp .CheckAndPrint
 
 
     .PrintName:
         lea si, LsDummyFileName
-        mov al, byte [NormalColour]
-        call VgaPrintString
-
-        lea si, LsFileNameSpace
         mov al, byte [NormalColour]
         call VgaPrintString
 
@@ -206,7 +200,7 @@ TimeCmd:
 
 ; Mom, why doesn't this work?
 SoundCmd:
-    mov ax, word 20
+    mov ax, word 1193
     call PlaySound
 
     jmp GetCommand.AddNewLine
@@ -372,8 +366,8 @@ FetchLogo5: db "  (/`-'\)   ", 0
 
 ; Ls command data
 LsNoFiles: db "File not found", 0
+LsDummyFileName: times 11 db 0
 LsFileNameSpace: db "   ", 0
-LsDummyFileName: times 12 db 0
 
 ; TrashVim program stuff
 TrashVimProgramFileName: db "TRASHVIMBIN", 0

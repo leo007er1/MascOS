@@ -59,6 +59,11 @@ EditProgram:
     lea si, FileName
     int 0x22
 
+    ; Print top text
+    mov ah, byte 2
+    mov al, byte 3
+    int 0x21
+
     xor ah, ah
     mov al, byte [AccentColour]
     and al, byte 0xfe
@@ -78,7 +83,8 @@ EditProgram:
     ; Paint bottom line
     mov ah, byte 5
     mov cl, byte 24
-    mov al, byte BarsDefaultColour
+    mov al, byte [NormalColour]
+    and al, byte 0xf7
     int 0x21
 
     ; Loads file after this program
@@ -232,9 +238,9 @@ TextEdit:
 
 
 
-EditingMessage: db 10, 13, "                        Currently editing  "
+EditingMessage: db "                        Currently editing  "
 FileName: times 12 db 0
-BottomBarModeSelector: db "Press enter to edit  |  Esc to exit program", 0
+BottomBarModeSelector: db "Press enter to edit  |  Esc to exit program                      TrashVim v0.1.0", 0
 BottomBarEditMode: db "Esc: exit edit mode", 0
 ModeSelectorText: db "W: save changes  Q: exit program", 0
 SaveMessage: db "Edit can't save files for now :/", 0

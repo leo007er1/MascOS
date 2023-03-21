@@ -110,9 +110,9 @@ GetCommand:
             call CompareCommand
             jnc ShutdownCmd
 
-            ; lea di, soundCmdStr
-            ; call CompareCommand
-            ; jnc SoundCmd
+            lea di, soundCmdStr
+            call CompareCommand
+            jnc SoundCmd
 
             call CommandNotFound
             call ClearCommandBuffer

@@ -19,8 +19,6 @@ KernelMain:
     mov ax, word KernelSeg ; Set every segment to where we are
     mov ds, ax
     mov es, ax
-    ; mov fs, ax
-    ; mov gs, ax
 
     ; Sets a 4KB stack below the boot sector
     mov ax, 0x687b
@@ -39,7 +37,7 @@ KernelMain:
     out 0x21, al
 
     ; Sets VGA 80x25
-    xor ax, ax
+    xor ah, ah
     mov al, 3
     int 0x10
 
@@ -203,13 +201,13 @@ GetBdaInfo:
     mov word [BiosEquipmentWord], ax
 
     ; Get I/O address of serial ports
-    xor si, si
-    mov ax, word [es:si]
-    mov word [SerialPorts], ax
-    mov ax, word [es:si + 2]
-    mov word [SerialPorts + 2], ax
-    mov ax, word [es:si + 4]
-    mov word [SerialPorts + 4], ax
+    ; xor si, si
+    ; mov ax, word [es:si]
+    ; mov word [SerialPorts], ax
+    ; mov ax, word [es:si + 2]
+    ; mov word [SerialPorts + 2], ax
+    ; mov ax, word [es:si + 4]
+    ; mov word [SerialPorts + 4], ax
 
     ; Get I/O address of parallel ports
     mov si, word 8
@@ -297,7 +295,7 @@ BiosEquipmentWord: dw 0 ; Are there any serial, parallel ports and other stuff
 
 ; Ports info
 ParallelPorts: times 3 dw 0
-SerialPorts: times 3 dw 0
+; SerialPorts: times 3 dw 0
 
 ; Logo stuff
 MascLogoSpace: db "                    ", 0

@@ -20,10 +20,12 @@
 ;   COM8 |  0x4E8 
 
 
+com1 equ 0x3f8
+
 
 
 ; Sets baud rate divisor and checks if the serial port is good or not good
-; DAD, THIS CODE DOESN'T WORK AAAA
+; * DAD, THIS CODE DOESN'T WORK AAAA
 ; Output:
 ;   ah = 0 for success, 1 for faulty port, 2 for no serial ports avaiable
 SerialInit:
@@ -32,64 +34,51 @@ SerialInit:
     test ah, ah
     jz .NoPort
 
-    mov dx, word [SerialPorts] ; COM1
-
     ; Sets baud rate divisor to the controller
     ; 115200 / 3 = 38400 baud
-    inc dx
     xor al, al
-    out dx, al ; Disable interrupts
+    out com1 + 1, al ; Disable interrupts
 
-    add dx, word 2
     mov al, byte 0x80
-    out dx, al ; Tell Line control register to enable DLAB bit
+    out com1 + 3, al ; Tell Line control register to enable DLAB bit
 
-    mov dx, word [SerialPorts] ; COM1
     mov al, byte 3 ; Divisor
-    out dx, al ; Divisor low byte
-
-    inc dx
+    out com1, al ; Divisor low byte
     xor al, al
-    out dx, al ; Divisor hight byte
+    out com1 + 1, al ; Divisor hight byte
 
     ; Set data bits
-    add dx, word 2
     mov al, byte 3
-    out dx, al ; 8 bits, one stop bit, no parity
+    out com1 + 3, al ; 8 bits, one stop bit, no parity
 
     ; Enable FIFO control registers
-    dec dx
     mov al, byte 0xc7
-    out dx, al
+    out com1 + 2, al
 
     ; Mess with modem control register
-    add dx, word 2
     mov al, byte 0xb ; Set RTS, DSR and hardware pin out 2, which enables IRQ
-    out dx, al
+    out com1 + 4, al
+    mov al, byte 0x1e
+    out com1 + 4, al ; Sets loopback mode to test UART?
 
-    ; mov al, byte 0x1e
-    ; out dx, al ; Sets loopback mode to test UART?
+    ; Test serial chip by sending a byte and checking the returned one
+    mov al, byte 0xae
+    out com1, al
 
-    ; ; Test serial chip by sending a byte and checking the returned one
-    ; sub dx, word 4
-    ; mov al, byte 0xae
+    ; Is it the same George?
+    in al, com1
+    cmp al, byte 0xae
+    jne .Different
 
-    ; ; Is it the same George?
-    ; in al, dx
-    ; cmp al, byte 0xae
-    ; jne .Error
-
-    ; ; Disables loopback mode with both out pins being used and IRQ
-    ; add dx, word 4
-    ; mov al, byte 0x0f
-    ; out dx, al
-
-    ; xor ah, ah
+    ; Disables loopback mode with both out pins being used and IRQ
+    mov al, byte 0x0f
+    out com1 + 4, al
+    xor ah, ah
     ret
 
-    ; .Error:
-    ;     mov ah, byte 1
-    ;     ret
+    .Different:
+        mov ah, byte 1
+        ret
 
     .NoPort:
         mov ah, byte 2
@@ -100,23 +89,16 @@ SerialInit:
 ; Output:
 ;   al = value from serial port
 SerialRead:
-    push dx
-    mov dx, word [SerialPorts] ; COM 1
-    add dx, word 5
-
     ; This loop is boring if we are waiting, right?
     .CheckReceived:
-        in al, dx
+        in al, com1 + 5
         and al, byte 1 ; Is there data that can be read?
         
         test al, al
         jnz .CheckReceived
 
     ; Wait there's data?!?!!??
-    sub dx, word 5
-    in al, dx
-
-    pop dx
+    in al, com1
     ret
 
 
@@ -125,15 +107,11 @@ SerialRead:
 ; Input:
 ;   al = value to send
 SerialWrite:
-    push dx
     push ax
-
-    mov dx, word [SerialPorts] ; COM 1
-    add dx, word 5
 
     ; Be annoyed in this loop while the transmit is doing stuff
     .CheckTransmit:
-        in al, dx
+        in al, com1 + 5
         and al, byte 0x20
 
         test al, al
@@ -141,9 +119,7 @@ SerialWrite:
 
     ; Yay the transmitter isn't doing anything
     pop ax
-    sub dx, word 5
-    out dx, al ; Send the byte
+    out com1, al ; Send the byte
 
-    pop dx
     ret
 

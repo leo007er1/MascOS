@@ -150,7 +150,7 @@ LoadKernel:
         call ReadDisk
 
         ; Calculates next cluster
-        ; Since the values for the clusters are 12 bits we need to read a two bytes
+        ; Since the values for the clusters are 12 bits we need to read two bytes
         ; and kick off the other 4 bits. We do:
         ; CurrentCluster + (CurrentCluster / 2)
         mov ax, word [CurrentCluster]
