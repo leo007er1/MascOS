@@ -86,6 +86,10 @@ GetCommand:
             call CompareCommand
             jnc TrashVimCmd
 
+            lea di, runCmdStr
+            call CompareCommand
+            jnc RunCmd
+
             lea di, fetchCmdStr
             call CompareCommand
             jnc FetchCmd
@@ -390,6 +394,7 @@ colourCmdStr: db "colourr", 0
 timeCmdStr: db "timee", 0
 catCmdStr: db "catt", 0
 shutdownCmdStr: db "shutdownn", 0
+runCmdStr: db "runn", 0
 
 
 %include "./Kernel/ShellCommands.asm"

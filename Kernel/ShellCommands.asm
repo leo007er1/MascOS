@@ -317,10 +317,9 @@ TrashVimCmd:
     call SearchFile
     jc .BadArgument
 
-    .Continue:
-        lea si, TrashVimProgramFileName
-        call LoadProgram
-        jc .Error
+    lea si, TrashVimProgramFileName
+    call LoadProgram
+    jc .Error
 
     .BadArgument:
         mov al, byte 1
@@ -335,6 +334,29 @@ TrashVimCmd:
         jmp GetCommand.AddNewLine
 
 
+RunCmd:
+    test al, al
+    jz TrashVimCmd.Error
+
+    lea si, AttributesBuffer
+    call SearchFile
+    jc .BadArgument
+
+    lea si, AttributesBuffer
+    call LoadProgram
+    jc .Error
+
+    .BadArgument:
+        mov al, byte 1
+        call VgaNewLine
+
+        lea si, TrashVimProgramBadArgument
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+    .Error:
+        jmp GetCommand.AddNewLine
 
 
 ; --//  Commands data  \\--

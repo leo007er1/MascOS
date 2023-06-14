@@ -1,7 +1,7 @@
 [bits 16]
 [cpu 8086]
 
-; *Here there will be commonly used values by the kernel
+; *Here there are some important values used by the kernel
 
 
 KernelSeg equ 0x7e0 ; Pretty important one
