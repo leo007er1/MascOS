@@ -7,10 +7,8 @@ cli ; No interruptions please
 jmp KernelMain
 
 
-
 LogoColor equ 0xe ; Yellow
 BdaMemAddress equ 0x40 ; Divided by 16 because it will be moved to es
-
 
 
 KernelMain:
@@ -43,13 +41,11 @@ KernelMain:
 
     call VgaInit
     call VgaClearScreen ; Need to update values
-
     call GetBdaInfo
     call SetNewInterrupts
     call InitSound
     call SerialInit
     call ApmInit
-    ; call VesaInit
     
     call PrintLogo
 
@@ -87,7 +83,7 @@ LoadProgram:
     push dx
 
     call SearchFile
-    jc .NoSendBadValues
+    jc .NoBadValues
 
     ; We need to know how CHUNCKY it is
     mov bx, cx ; Cx is contains the pointer to entry in root directory
@@ -100,51 +96,6 @@ LoadProgram:
     inc ax
 
     .LoadIt:
-        ; xor dx, dx
-        ; mov bx, word 1024 ; If you have alzheimer 1024 bytes is a KB. What did I just say? Do I even exist?
-        ; mul bx
-
-        ; push ax
-
-        ; mov di, cx ; Get back the pointer to the entry
-        ; mov bx, word [ProgramOffset] ; Offset
-        ; call LoadFile
-        
-        ; ; Bx / 16
-        ; xor dx, dx
-        ; xchg ax, bx
-        ; mov bx, word 16
-        ; div bx
-
-        ; add ax, ProgramBaseOffset
-
-        ; ; Don't forget to
-        ; pop bx
-        ; add word [ProgramOffset], bx
-
-        ; ; Now we got the value to set cs, ds, es to
-        ; xor bx, bx
-        ; mov ds, ax
-        ; mov es, ax
-
-        ; pop dx
-        ; pop cx
-
-        ; ; Far jump to program
-        ; push ax
-        ; push bx
-        ; retf
-
-        ; ---------------------------------------
-
-        ; How many sectors my dear?
-        ; x * 1024 / 512 = x * 2
-        ; xor dx, dx
-        ; mov bx, word 2
-        ; mul bx
-
-        ; push ax
-
         mov bx, word ProgramSeg
         mov es, bx
         mov di, cx ; Get back the pointer to the entry
@@ -165,25 +116,22 @@ LoadProgram:
         retf
 
 
-    .NoSendBadValues:
+    .NoBadValues:
         stc
         ret
     
-
 
 ; External programs get here when they finish
 ProgramEndPoint:
     ; Let's pop off the values that the int instruction put to the stack
     pop ax
     pop bx
-
     mov ax, word KernelSeg
     mov ds, ax
     mov es, ax
 
-    call VgaClearScreen
+    ; call VgaClearScreen
     ; call ClearAttributesBuffer
-
 
     jmp GetCommand.AddNewLine
 
@@ -199,15 +147,6 @@ GetBdaInfo:
     mov si, word 0x10
     mov ax, word [es:si]
     mov word [BiosEquipmentWord], ax
-
-    ; Get I/O address of serial ports
-    ; xor si, si
-    ; mov ax, word [es:si]
-    ; mov word [SerialPorts], ax
-    ; mov ax, word [es:si + 2]
-    ; mov word [SerialPorts + 2], ax
-    ; mov ax, word [es:si + 4]
-    ; mov word [SerialPorts + 4], ax
 
     ; Get I/O address of parallel ports
     mov si, word 8
@@ -248,7 +187,6 @@ GetBdaInfo:
 %endmacro
 
 
-
 ; *TRASH CODE WARNING! CONTINUE AT YOUR OWN RISK
 PrintLogo:
     xor cx, cx
@@ -256,7 +194,6 @@ PrintLogo:
     ; Padding to the top
     mov al, byte 6
     call VgaNewLine
-
 
     .Logo:
         ; Now it's way cleaner
@@ -272,12 +209,10 @@ PrintLogo:
         ret
 
 
-
 ; Kernel files
 %include "./Bootloader/Common.inc"
 %include "./Kernel/IVT.asm"
 %include "./Kernel/Screen/VGA.asm"
-%include "./Kernel/Screen/VESA.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
 %include "./Kernel/Timer/PIT.asm"
@@ -287,7 +222,7 @@ PrintLogo:
 %include "./Kernel/IO/Parallel.asm"
 %include "./Kernel/APM.asm"
 %include "./Kernel/String.asm"
-
+%include "./Kernel/DOS.asm"
 
 
 TotalMemory: dw 0
@@ -295,7 +230,6 @@ BiosEquipmentWord: dw 0 ; Are there any serial, parallel ports and other stuff
 
 ; Ports info
 ParallelPorts: times 3 dw 0
-; SerialPorts: times 3 dw 0
 
 ; Logo stuff
 MascLogoSpace: db "                    ", 0

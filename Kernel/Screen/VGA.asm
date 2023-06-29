@@ -308,6 +308,10 @@ VgaPrintString:
         test al, al
         je .Exit
 
+        ; MS DOS terminates strings with a dollar sign....
+        ; cmp al, byte "$"
+        ; je .Exit
+
         cmp al, byte 10
         je .NewLine
 

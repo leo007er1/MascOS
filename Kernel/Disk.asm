@@ -69,7 +69,6 @@ ReadDisk:
     call ResetDisk
 
     ; Buffer to read to(ES:BX) is already set
-
     mov ah, 0x02 ; Read please
     ; Sectors to read are already set
     mov dl, byte [BootDisk]
@@ -166,6 +165,64 @@ GetFirstEmptyEntry:
         pop si
         pop ax
 
+        ret
+
+
+
+; As the name says, it finds the first unused cluster
+; Input:
+;   ax = cluster to start from
+GetFirstFreeCluster:
+    push bx
+    push cx
+    push dx
+
+    mov word [FirstEmptyCluster], ax
+
+    push es
+    mov bx, FATMemLocation
+    mov es, bx
+
+    .FindCluster:
+        mov ax, word [FirstEmptyCluster]
+        mov dx, ax
+        mov bx, ax
+        mov cl, byte 1
+        shr bx, cl
+        add ax, bx
+
+        ; Get the 12 bits
+        mov bx, ax
+        mov ax, word [es:bx]
+
+        ; Checks if the current cluster is even or not
+        test dx, 1
+        jz .EvenCluster
+
+        .OddCluster:
+            mov cl, byte 4
+            shr ax, cl
+            jmp .Continue
+
+        .EvenCluster:
+            and ax, 0xfff
+
+        .Continue:
+            cmp ax, word 0
+            jz .Exit
+
+            inc word [FirstEmptyCluster]
+            jmp .FindCluster
+
+    .Exit:
+        cli
+        hlt
+
+        pop dx
+        mov es, dx
+        pop dx
+        pop cx
+        pop bx
         ret
 
 
@@ -416,50 +473,6 @@ LoadFile:
 
 
 
-; * Do I need to do this?
-; Zeroes out the memory
-; Input:
-;   es:bx = offset to start clearing from
-;   al = sectors to clear
-; ClearMem:
-;     push es
-;     push ds
-
-;     mov dx, word ProgramSeg
-;     mov es, dx
-;     mov dx, word KernelSeg
-;     mov ds, dx
-
-;     xor dx, dx
-;     xor ah, ah
-;     mov cx, word 512 ; Sector size in bytes
-;     mul cx
-
-;     xor cx, cx
-
-;     .ClearLoop:
-;         test ax, ax
-;         jz .Exit
-
-;         mov word [es:bx], cx
-
-;         add bx, word 2
-;         sub ax, word 2
-
-;         jmp .ClearLoop
-
-;     .Exit:
-
-;         pop dx
-;         mov ds, dx
-;         pop dx
-;         mov es, dx
-
-;         ret
-
-
-
-
 ; Converts LBA to CHS
 ; Input:
 ;   ax = lba address to convert
@@ -488,7 +501,6 @@ LbaToChs:
     ret
 
 
-
 ; Resets the disk: moves to the first sector
 ; Output:
 ;   ah = status (0 if success)
@@ -501,7 +513,6 @@ ResetDisk:
     int 0x13
 
     pop ax
-
     ret
 
 
@@ -516,11 +527,11 @@ DiskError:
 
 
 
-
 BootDisk: db 0
 CurrentCluster: dw 0
 FileOffset: dw 0
 FirstEmptyEntry: dw 0
+FirstEmptyCluster: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0

@@ -15,14 +15,13 @@
 
 
 
-
 ; Sets the os own interrupts into the IVT
 SetNewInterrupts:
     cli ; Yeah, we are doing important stuff, ok?
 
     xor ax, ax
     mov es, ax
-    mov cx, 3 ; Number of Ints
+    mov cx, 4 ; Number of Ints
     mov bx, word 0x80 ; Offset for the IVT
     lea si, IntTable
 
@@ -49,5 +48,6 @@ SetNewInterrupts:
 
 IntTable:
     dw ProgramEndPoint ; Int 0x20
-    dw VgaIntHandler ; Int 0x21
+    dw DosInt21 ; Int 0x21
     dw DiskIntHandler ; Int 0x22
+    dw VgaIntHandler ; Int 0x23

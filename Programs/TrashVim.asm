@@ -40,18 +40,17 @@ AccentColour: db 0
 %endmacro
 
 
-
 EditProgram:
     push cx
 
     ; Get colours
     mov ah, byte 8
-    int 0x21
+    int 0x23
     mov word [NormalColour], bx ; Sets AccentColour too
 
     ; Clear screen
     mov ah, byte 6
-    int 0x21
+    int 0x23
 
     ; Print file name
     mov bx, cx ; Get that pointer back
@@ -62,36 +61,34 @@ EditProgram:
     ; Print top text
     mov ah, byte 2
     mov al, byte 3
-    int 0x21
+    int 0x23
 
     xor ah, ah
     mov al, byte [AccentColour]
     and al, byte 0xfe
     lea si, EditingMessage
-    int 0x21
+    int 0x23
 
     ; Print bottom bar
     mov ah, byte 3
     mov al, byte 24
-    int 0x21
+    int 0x23
 
     xor ah, ah
     mov al, byte [NormalColour]
     lea si, BottomBarModeSelector
-    int 0x21
+    int 0x23
 
     ; Paint bottom line
     mov ah, byte 5
     mov cl, byte 24
     mov al, byte [NormalColour]
     and al, byte 0xf7
-    int 0x21
+    int 0x23
 
-    ; Loads file after this program
-    ; *NOTE:
-    ;* I KNOW that I shouldn't do this, but uff, I'm too lazy to figure out a workaroud fort his
+    ; Loads file contents into buffer
     pop di
-    mov bx, word 0x400 ; 3KB
+    lea bx, TextBuffer
     mov ah, byte 1
     int 0x22
 
@@ -112,12 +109,12 @@ ModeSelector:
     .EnterCommand:
         mov ah, byte 3
         mov al, byte 24
-        int 0x21
+        int 0x23
 
         xor ah, ah
         lea si, ModeSelectorText
         mov al, byte BarsDefaultColour
-        int 0x21
+        int 0x23
 
         .Loop:
             WaitForKeyPress
@@ -131,53 +128,52 @@ ModeSelector:
 
             jmp .Loop
 
-
             .Write:
                 mov ah, byte 3
                 mov al, byte 23
-                int 0x21
+                int 0x23
 
                 ; Show message
                 xor ah, ah
                 lea si, SaveMessage
                 mov al, byte [AccentColour]
                 and al, 0xfc ; Red
-                int 0x21
+                int 0x23
 
                 mov ah, byte 3
                 mov al, byte 24
-                int 0x21
+                int 0x23
 
                 jmp .Loop
 
             .Enter:
                 ; Clears screen and read the bottom bar
                 mov ah, byte 6
-                int 0x21
+                int 0x23
 
                 mov ah, byte 3
                 mov al, byte 24
-                int 0x21
+                int 0x23
 
                 xor ah, ah
                 lea si, BottomBarEditMode
                 mov al, byte BarsDefaultColour
-                int 0x21
+                int 0x23
 
                 mov ah, byte 5
                 mov al, byte BarsDefaultColour
                 mov cl, byte 24
-                int 0x21
+                int 0x23
 
                 mov ah, byte 3
                 xor al, al
-                int 0x21
+                int 0x23
 
                 ; Prints the text of the file
-                mov si, 0x400 ; 2KB after this file
                 xor ah, ah
+                lea si, TextBuffer
                 mov al, byte [NormalColour]
-                int 0x21
+                int 0x23
 
                 jmp TextEdit
 
@@ -200,20 +196,20 @@ TextEdit:
     .NormalCharacter:
         mov ah, byte 1
         mov cl, byte [NormalColour]
-        int 0x21
+        int 0x23
 
         jmp TextEdit
 
     .Enter:
         mov ah, byte 2
         mov al, byte 1
-        int 0x21
+        int 0x23
 
         jmp TextEdit
 
     .Backspace:
         mov ah, byte 7
-        int 0x21
+        int 0x23
 
         jmp TextEdit
 
@@ -222,17 +218,17 @@ TextEdit:
     .Esc:
         mov ah, byte 3
         mov al, byte 24
-        int 0x21
+        int 0x23
 
         mov ah, byte 5
         mov al, byte BarsDefaultColour
         mov cl, byte 24
-        int 0x21
+        int 0x23
 
         xor ah, ah
         lea si, BottomBarEditMode
         mov al, byte 0xff ; The opposite text color of BarsDefaultColours
-        int 0x21
+        int 0x23
 
         jmp ModeSelector
 
@@ -243,5 +239,7 @@ FileName: times 12 db 0
 BottomBarModeSelector: db "Press enter to edit  |  Esc to exit program                      TrashVim v0.1.0", 0
 BottomBarEditMode: db "Esc: exit edit mode", 0
 ModeSelectorText: db "W: save changes  Q: exit program", 0
-SaveMessage: db "Edit can't save files for now :/", 0
+SaveMessage: db "Can't save files for now :/", 0
 ModeSelectorBuffer: times 6 db 0
+
+TextBuffer: times 512 db 0

@@ -7,7 +7,7 @@ End of program interrupt.
 This interrupt gets invoked whenever an external program ends it's job and wants to **pass control to the kernel**. Doesn't expect any input, just call the interrupt.
 
 
-## Int 0x21
+## Int 0x23
 Screen output throught VGA driver.
 
 ### Print string

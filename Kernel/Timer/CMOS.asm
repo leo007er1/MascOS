@@ -82,7 +82,6 @@ CmosGetSystemDate:
     .NextCentury:
         add ax, word 2002
 
-
     .GetMonth:
         mov bx, ax
 
@@ -125,7 +124,6 @@ CmosGetSystemTime:
     pop bx
 
     ret
-
 
 
 ; Converts a normal binary number into a Binary Coded Decimal value
