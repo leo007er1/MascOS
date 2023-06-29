@@ -5,7 +5,7 @@
 ![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpg)
 
 ## Current situation of the project
-The latest version includes the new VGA driver, and shouldn't have bugs anymore, since I fixed every one of those I have found. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
+The latest version shouldn't have bugs anymore or just a few, since I fixed every one of those I have found. MS DOS programs can *theoretically* run on this not so good operating system, but keep in mind I haven't tested anything and I haven't implemented everything needed for those programs to behave without issues. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
 
 I have tried to boot MascOS with a floppy disk(3.5 inch, 1.44MB) from an external usb floppy drive, and it worked almost flawlessly. It was tested on a Toshiba NB250 laptop.
 
