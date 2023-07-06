@@ -244,3 +244,5 @@ SaveMessage: db "Can't save files for now :/", 0
 ModeSelectorBuffer: times 6 db 0
 
 TextBuffer: times 512 db 0
+
+times 50 db 0

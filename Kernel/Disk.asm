@@ -324,6 +324,7 @@ GetFileName:
 ;   bx = pointer to entry in root directory
 ; Output:
 ;   ax = file size in KB
+;   dx = remainder(in bytes)
 GetFileSize:
     push cx
     push dx
@@ -331,22 +332,17 @@ GetFileSize:
 
     mov ax, RootDirMemLocation
     mov es, ax
-    add bx, word 0x1c ; Offset to file size
+    add bx, word 0x1c ; File size
 
     ; Gets and transforms the value in KB
-    ; *Note:
-    ; * If I count the other 2 bytes and move them into dx, ax freaks itself up
     xor dx, dx
-    mov ax, word [es:bx + 2]
+    mov ax, word [es:bx]
     mov cx, word 1024 ; Size in bytes of a KB
     div cx
 
-    pop bx
-    mov es, ax
-
+    pop es
     pop dx
     pop cx
-
     ret
 
 

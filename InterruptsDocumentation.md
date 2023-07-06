@@ -47,6 +47,7 @@ Gets the file size and returns the value in kilobytes(KB).
 
 **Output**<br>
 `ax` = file size in KB
+`dx` = remainder in bytes
 
 
 ## Int 0x23

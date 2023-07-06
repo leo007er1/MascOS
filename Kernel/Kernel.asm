@@ -87,12 +87,14 @@ LoadProgram:
     jc .NoBadValues
 
     ; We need to know how CHUNCKY it is
-    mov bx, cx ; Cx is contains the pointer to entry in root directory
+    mov bx, cx ; cx is contains the pointer to entry in root directory
     call GetFileSize
 
-    ; If ax = 0, the file is smaller than a KB, so add 1 to ax
-    test ax, ax
-    jnz .LoadIt
+    shl ax, 1 ; ax * 2
+
+    ; If dx = 0, we need to count another sector
+    or dx, dx
+    jz .LoadIt
 
     inc ax
 
@@ -153,10 +155,10 @@ FreeProgram:
     mov cx, word 2
     mul cx
 
-    mov dx, bx ; Whre the program code starts
+    mov dx, bx ; Where the program code starts
 
     .ClearSector:
-        test ax, ax
+        or ax, ax
         jz .Exit
 
         mov cx, word 256 ; Words per sector
