@@ -56,14 +56,9 @@ CursorPos: dw 0
 
     mov byte [NormalColour], cl
 
-    ; We should set them back to their original values
+    pop ds
+    pop es
     pop bx
-    mov es, bx
-    pop bx
-    mov ds, bx
-
-    pop bx
-
 %endmacro
 
 
@@ -128,13 +123,10 @@ CursorPos: dw 0
     mov word [CursorPos], ax
     mov byte [CurrentColumn], 0
 
-    pop dx
-    mov ds, dx
-
+    pop ds
     pop dx
     pop bx
     pop ax
-
 %endmacro
 
 
@@ -143,7 +135,7 @@ CursorPos: dw 0
     push bx
     push dx
 
-    ; Divide CursorPos by 2(because CursorPos is incremented by 2 because we count the attribute byte too)
+    ; Divide CursorPos by 2(CursorPos is incremented by 2 because we count the attribute byte too)
     xor dx, dx
     mov ax, word [CursorPos]
     mov bx, word 2
@@ -169,7 +161,6 @@ CursorPos: dw 0
     pop dx
     pop bx
     pop ax
-
 %endmacro
 
 
@@ -179,17 +170,17 @@ VgaInit:
     ; *NOTE: this won't do anything on new hardware that emulates VGA, only on real VGA hardware
     ; Disable blink bit so we can use all 16 colours instead of 8
     ; Reset index or data flip-flop. We don't known it's initial state
-    mov dx, 0x03da
+    mov dx, word 0x03da
     in al, dx
 
     ; Now 0x3c0 is in index state, so we select the "Attribute mode control register" that contains
     ; the "Palette address source"
-    mov dx, 0x03c0
+    mov dx, word 0x03c0
     mov al, 0x30
     out dx, al
 
     ; Get value from "Attribute mode control register" in 0x3c1
-    mov dx, 0x03c1
+    mov dx, word 0x03c1
     in al, dx
 
     ; Sets bit 3, which is the blink enable bit
@@ -197,10 +188,8 @@ VgaInit:
     and al, 0xf7
 
     ; Updates that freaking register with new value
-    mov dx, 0x03c0
+    dec dl
     out dx, al
-
-    ; Woah, that was a lot for disabling text blinking
 
     ret
 
@@ -297,16 +286,14 @@ VgaPrintString:
     mov dl, byte [CurrentColumn]
     mov dh, al
 
-    pop ax
-    mov ds, ax
-
+    pop ds
     mov ah, dh ; Ah will stay as it is now
 
     .PrintLoop:
         lodsb ; Loads next character into al
 
-        test al, al
-        je .Exit
+        or al, al
+        jz .Exit
 
         ; MS DOS terminates strings with a dollar sign....
         ; cmp al, byte "$"
@@ -340,11 +327,8 @@ VgaPrintString:
             VgaPrintNewLine 1
             mov bx, word [CursorPos] ; Get new CursorPos
 
-            pop cx
-            mov ds, cx
-
+            pop ds
             xor dl, dl ; CurrentColumn = 0
-
             jmp .PrintLoop
 
 
@@ -361,9 +345,7 @@ VgaPrintString:
         mov word [es:CursorPos], bx
         mov byte [es:CurrentColumn], dl
 
-        pop ax
-        mov es, ax
-
+        pop es
         pop dx
         pop cx
         pop bx
@@ -402,8 +384,7 @@ VgaNewLine:
     VgaPrintNewLine al
     VgaSetCursor
 
-    pop bx
-    mov ds, bx
+    pop ds
     pop cx
     pop bx
 
@@ -428,12 +409,9 @@ VgaGotoLine:
     mul cx
 
     mov word [CursorPos], ax
-
     VgaSetCursor
 
-    pop bx
-    mov ds, bx
-
+    pop ds
     ret
 
 
@@ -467,28 +445,25 @@ VgaPaintLine:
     inc word [CursorPos] ; We select the attribute byte, since after we add 2 to CursorPos it will skip the character byte
     pop ax
 
+    mov bx, VgaBuffer
+    mov es, bx
+    mov bx, word [CursorPos]
+
     .Loop:
-        mov bx, VgaBuffer
-        mov es, bx
-
-        mov bx, word [CursorPos]
         mov byte [es:bx], al
-
-        add word [CursorPos], 2
+        add bx, 2
 
         loop .Loop
 
     .Exit:
-        pop bx
-        mov es, bx
+        mov word [CursorPos], bx
+        pop es
         pop bx
         mov byte [CurrentColumn], bl
         pop bx
         mov word [CursorPos], bx
 
-        pop ax
-        mov ds, ax
-
+        pop ds
         ret
 
 
@@ -557,8 +532,7 @@ VgaScroll:
     .Finished:
         VgaSetCursor
         
-        pop dx
-        mov ds, dx
+        pop ds
         pop dx
         pop cx
         pop bx
@@ -598,14 +572,10 @@ VgaClearScreen:
         mov byte [CurrentColumn], al
         mov byte [CurrentRow], al
 
-        pop bx
-        mov ds, bx
-        pop bx
-        mov es, bx
-
+        pop ds
+        pop es
         pop cx
         pop bx
-
         ret
 
 
@@ -628,7 +598,6 @@ VgaClearLine:
 
     ; Calculates the cursor position
     xor ah, ah
-    xor dx, dx
     mov bx, word 160
     mul bx
 
@@ -637,28 +606,25 @@ VgaClearLine:
     xor al, al
     mov ah, byte [NormalColour]
 
+    mov bx, VgaBuffer
+    mov es, bx
+    mov bx, word [CursorPos]
+
     .Loop:
-        mov bx, VgaBuffer
-        mov es, bx
-
-        mov bx, word [CursorPos]
         mov word [es:bx], ax
-
-        add word [CursorPos], 2
+        add bx, 2
 
         loop .Loop
 
     .Exit:
-        pop bx
-        mov es, bx
+        mov word [CursorPos], bx
+        pop es
         pop bx
         mov byte [CurrentColumn], bl
         pop bx
         mov word [CursorPos], bx
 
-        pop ax
-        mov ds, ax
-
+        pop ds
         ret
 
 
@@ -685,10 +651,10 @@ VgaPaintScreen:
     mov cx, 2000
 
     ; If both colours are 0 don't paint anything
-    test al, al
+    or al, al
     jz .Exit
 
-    test dl, dl
+    or dl, dl
     jz .Exit
 
     ; We need to set the new colours
@@ -696,7 +662,7 @@ VgaPaintScreen:
     mov byte [AccentColour], dl
 
     .PaintScreen:
-        test cx, cx
+        or cx, cx
         jz .Exit
 
         mov byte [es:bx], al ; Set attribute byte
@@ -707,15 +673,11 @@ VgaPaintScreen:
 
 
     .Exit:
-        pop ax
-        mov ds, ax
-        pop ax
-        mov es, ax
-
+        pop ds
+        pop es
         pop dx
         pop cx
         pop bx
-
         ret
 
 
@@ -726,15 +688,12 @@ VgaPaintScreen:
 ;   bh = accent colour
 VgaGetColours:
     push ds
-
     mov bx, word KernelSeg
     mov ds, bx
 
     mov bx, word [ds:NormalColour]
 
-    pop ax
-    mov ds, ax
-
+    pop ds
     ret
 
 
@@ -754,8 +713,8 @@ VgaBackspace:
     cmp word [CursorPos], word 0
     jle .Exit
 
-    cmp al, byte 0
-    jne .Skip
+    or al, al
+    jnz .Skip
 
     dec ah
     mov al, byte 79
@@ -776,9 +735,6 @@ VgaBackspace:
         mov byte [CurrentColumn], al
         mov byte [CurrentRow], ah
 
+        pop ds
         pop bx
-        mov ds, bx
-
-        pop bx
-
         ret

@@ -2,9 +2,6 @@
 [cpu 8086]
 
 
-; TODO: Now clear works by using "clearr" as the command string, FIX IT
-
-
 ; *General notes
 ; * Scan code of enter is 13
 ; * Scan code of backspace is 8
@@ -94,9 +91,9 @@ GetCommand:
             call CompareCommand
             jnc FetchCmd
 
-            lea di, catCmdStr
+            lea di, touchCmdStr
             call CompareCommand
-            jnc CatCmd
+            jnc touchCmd
 
             lea di, rebootCmdStr
             call CompareCommand
@@ -113,6 +110,10 @@ GetCommand:
             lea di, shutdownCmdStr
             call CompareCommand
             jnc ShutdownCmd
+
+            lea di, standbyCmdStr
+            call CompareCommand
+            jnc StandbyCmd
 
             lea di, soundCmdStr
             call CompareCommand
@@ -131,6 +132,8 @@ GetCommand:
             call VgaNewLine
             
         .SkipNewLine:
+            call ClearAttributesBuffer
+
             lea si, CommandThing
             mov al, byte [AccentColour]
             call VgaPrintString
@@ -185,22 +188,25 @@ CompareCommand:
     ; di is already set
 
     repe cmpsb
-    jne .Mismatch
+    jnz .Mismatch
 
     ; Oh yes
     jmp .Exit
 
     .Mismatch:
+        dec di
+        dec si
+
         ; If it's a space then check for attributes
-        cmp [si], byte 32
+        cmp byte [si], byte 32
         je .CheckForAttributes
 
-        cmp [si], byte 0
-        jne .GoBack
-
-        ; If di is 0 then it's a match
-        cmp [di], byte 0
+        ; If di is 0xff(end of command name) then it's a match
+        cmp byte [di], byte 0xff
         je .Exit
+
+        cmp byte [si], byte 0
+        jne .GoBack
 
         .GoBack:
             pop si
@@ -211,45 +217,44 @@ CompareCommand:
 
 
     .CheckForAttributes:
-        mov di, AttributesBuffer
-        xor al, al
-        dec si
+        lea di, AttributesBuffer
+        xor ah, ah
+        xor cl, cl
 
         .Loop:
-            cmp byte [si], byte " "
+            mov al, byte [si]
+            cmp al, byte " "
             je .Continue
 
         .CheckForEnd:
-            cmp byte [si], byte 0
-            je .Exit
+            or al, al
+            jz .Exit
 
         ; When we encounter a text character in our journey inside
         ; the roots of the jungle, this happens...
         .Attribute:
-            cmp byte [si], byte 0
-            je .AttributeEnd
+            lodsb
+            or al, al
+            jz .AttributeEnd
 
             ; cmp byte [si], byte " "
             ; jne .YetAnotherChar
             jmp .YetAnotherChar
 
             ; END OF ATTRIBUTE
-            inc al
-            inc di
-            mov byte [di], byte 0xff ; We separate attributes with 0xff
-            add byte [AttributesBufferPos], byte 2
-            inc di
+            ; inc ah
+            ; inc di
+            ; mov byte [di], byte 0xff ; We separate attributes with 0xff
+            ; add byte [AttributesBufferPos], byte 2
+            ; inc di
 
-            jmp .Continue
+            ; jmp .Continue
 
             .YetAnotherChar:
-                ; Moves character to buffer
-                mov bl, byte [si]
-                mov byte [di], bl
+                mov byte [di], al ; Moves character to buffer
 
-                inc si
                 inc di
-                inc byte [AttributesBufferPos]
+                inc cl
                 jmp .Attribute
 
         .Continue:
@@ -258,8 +263,9 @@ CompareCommand:
 
 
     .AttributeEnd:
-        inc al
-        mov byte [AttributesCounter], al
+        inc ah
+        mov byte [AttributesCounter], ah
+        mov byte [AttributesBufferPos], cl
 
     .Exit:
         pop si
@@ -320,12 +326,11 @@ GetAttribute:
 ;   si = command buffer position
 ClearCommandBuffer:
     .Loop:
-        test si, si
+        or si, si
         jz .Exit
 
         mov byte [CommandBuffer + si], byte 0
         dec si
-
         jmp .Loop
 
     .Exit:
@@ -336,15 +341,15 @@ ClearCommandBuffer:
 ; Sets every byte in attributes buffer to 0
 ClearAttributesBuffer:
     push si
-    mov si, [AttributesBufferPos]
+    xor bh, bh
+    mov bl, byte [AttributesBufferPos]
 
     .Loop:
-        test si, si
+        or bl, bl
         jz .Exit
 
-        mov byte [AttributesBuffer + si], byte 0
-        dec si
-
+        mov byte [AttributesBuffer + bx], byte 0
+        dec bl
         jmp .Loop
 
     .Exit:
@@ -382,19 +387,20 @@ InitShellMessage: db "Write 'help' to see command list", 10, 13, 10, 13, 0
 CommandNotFoundMessage: db "Command not found", 0
 
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
-clearCmdStr: db "clearr", 0
-helpCmdStr: db "helpp", 0
-lsCmdStr: db "lss", 0
-trashVimCmdStr: db "editt", 0
-fetchCmdStr: db "fetchh", 0
-himomCmdStr: db "himomm", 0
-rebootCmdStr: db "reboott", 0
-soundCmdStr: db "soundd", 0
-colourCmdStr: db "colourr", 0
-timeCmdStr: db "timee", 0
-catCmdStr: db "catt", 0
-shutdownCmdStr: db "shutdownn", 0
-runCmdStr: db "runn", 0
+clearCmdStr: db "clear", 0xff
+helpCmdStr: db "help", 0xff
+lsCmdStr: db "ls", 0xff
+touchCmdStr: db "touch", 0xff
+trashVimCmdStr: db "edit", 0xff
+fetchCmdStr: db "fetch", 0xff
+himomCmdStr: db "himom", 0xff
+rebootCmdStr: db "reboot", 0xff
+soundCmdStr: db "sound", 0xff
+colourCmdStr: db "colour", 0xff
+timeCmdStr: db "time", 0xff
+shutdownCmdStr: db "shutdown", 0xff
+standbyCmdStr: db "standby", 0xff
+runCmdStr: db "run", 0xff
 
 
 %include "./Kernel/ShellCommands.asm"

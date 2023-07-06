@@ -1,33 +1,11 @@
 [bits 16]
 [cpu 8086]
 
-
-; *How we split 1193180 into dx:ax
-; x = 1193180
-; a = 1193  b = 180
-;
-; x = 16a + b
-; -16a = -x + b
-; 16a = x - b
-; a = (x - b) / 16
-; b = x - 16a
-;
-; Result:
-; a = 74562   We ignore the decimal values
-; b = 188
-
-
-; *Byte to insert in Mode/Command register at I/O port 0x43:
-; Bits 7-6: channel 2           10
-; Bits 5-4: both bytes          11
-; Bits 3-1: square wave gen     011
-; Bit 0: binary mode            0
-;
-; Which gives us: 10110110
+; https://wiki.osdev.org/PC_Speaker
+; https://forum.osdev.org/viewtopic.php?f=13&t=17293
 
 
 PitIrqOffset equ 0x20 ; Offset in IVT
-
 
 
 ; Sets IRQ0 to our code
@@ -51,34 +29,33 @@ InitSound:
 
 ; Plays a sound with the given frequency
 ; Input:
-;   ax = frequency
+;   bx = frequency divided by 1193180
 PlaySound:
-    push ax
+    mov ax, 0x34dd
+    mov dx, 0x0012
+    cmp dx, bx
+    jnc .End
 
-    ; Give the PIT the "stuff"
-    mov al, byte ModeCommandRegisterByte
-    out 0x43, al
-    pop ax
-
-    out 0x42, al
-    mov cl, byte 8
-    sar al, cl
-    out 0x42, al
-
+    div bx
+    mov bx, ax
+    
     ; Get the position of speaker from bit 1 of port 0x61 of keyboard controller
     in al, 0x61
-    mov dl, al
-    or dl, byte 3
+    test al, byte 3
+    jnz .a99
 
-    cmp al, dl
-    jne .Different
+    or al, 3
+    out 0x61, al
+    
+    ; Reprogram PIT channel 2 to be a square wave generator 
+    mov al, byte 0xb6
+    out 0x43, al
 
-    ; out 0x61, al
-    jmp .End
-
-    .Different:
-        mov al, dl
-        out 0x61, al
+    .a99:
+        mov al, bl
+        out 0x42, al
+        mov al, bh
+        out 0x42, al
 
     .End:
         ret
@@ -87,11 +64,7 @@ PlaySound:
 
 StopSound:
     in al, 0x61
-    and al, 0xfc
-
+    and al, 11111100b
     out 0x61, al
 
     ret
-
-
-ModeCommandRegisterByte: db 0xb6

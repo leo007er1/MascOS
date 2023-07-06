@@ -14,8 +14,6 @@
 FATMemLocation equ 0x50
 ; We load the root directory after the FAT and reserve 7KB to it
 RootDirMemLocation equ 0x170
-; Offset that adds up to the one given in when using the LoadFile
-KernelOffset equ 6144 ; 12 sectors
 
 ; Stuff from BPB
 RootDirEntries equ 224
@@ -90,7 +88,7 @@ ReadDisk:
         cmp byte [ReadAttempts], byte 3
         je DiskError
 
-        call ReadDisk
+        jmp ReadDisk
 
     .Exit:
         mov byte [ReadAttempts], byte 0
@@ -127,7 +125,7 @@ WriteDisk:
         cmp byte [ReadAttempts], byte 3
         je DiskError
 
-        call WriteDisk
+        jmp WriteDisk
 
     .Exit:
         mov byte [ReadAttempts], byte 0
@@ -354,21 +352,66 @@ GetFileSize:
 
 
 ; Creates a new empty file
+; Input:
+;   si = pointer to file name
 CreateFile:
     push es
     push ds
+    push ds
 
+    lea si, FileNameBuffer
+        mov al, byte [AccentColour]
+        call VgaPrintString
+
+        cli
+        hlt
+
+    pop es ; Set es to ds
     mov bx, word KernelSeg
     mov ds, bx
+    xor bx, bx
 
-    call GetFirstEmptyEntry
+    ; Calculate lenght of file name
+    .NameLenght:
+        cmp bx, byte 11
+        je .NameToBuffer
+
+        mov al, byte [es:si + bx]
+
+        ; If the name is shorter than 4 bytes throw an error
+        test al, al
+        jnz .Continue
+        cmp bx, byte 4
+        jb .Error
+
+        .Continue:
+            mov byte [FileNameBuffer + bx], al ; Move to buffer
+            inc bx
+            inc si
+
+            jmp .NameLenght
+
+    .NameToBuffer:
+        lea si, FileNameBuffer
+        mov al, byte [AccentColour]
+        call VgaPrintString
+
+        cli
+        hlt
+
+        call GetFirstEmptyEntry
+
+
 
     ; Now let's check for a free cluster in FAT
     ; TODO: Capire come scrivere nel FAT senza spaccarlo in due
     ; TODO: e anche come capire di quale cluster si sta parlando
 
+    .Error:
+        cli
+        hlt
 
-    ret
+        ret
 
 
 
@@ -532,6 +575,8 @@ CurrentCluster: dw 0
 FileOffset: dw 0
 FirstEmptyEntry: dw 0
 FirstEmptyCluster: dw 0
+FileNameBuffer: times 11 db 0
+FileNameBufferSize: db 0
 
 ChsSector: db 0
 ChsTrack: db 0

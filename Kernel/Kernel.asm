@@ -6,7 +6,7 @@
 cli ; No interruptions please
 jmp KernelMain
 
-
+%define NewLine 10, 13
 LogoColor equ 0xe ; Yellow
 BdaMemAddress equ 0x40 ; Divided by 16 because it will be moved to es
 
@@ -46,6 +46,7 @@ KernelMain:
     call InitSound
     call SerialInit
     call ApmInit
+    ; call InitSound
     
     call PrintLogo
 
@@ -96,10 +97,12 @@ LoadProgram:
     inc ax
 
     .LoadIt:
-        mov bx, word ProgramSeg
-        mov es, bx
+        mov dx, word ProgramSeg
+        mov es, dx
+        mov word [es:0], ax ; Save the file size
+
         mov di, cx ; Get back the pointer to the entry
-        xor bx, bx ; Offset
+        mov bx, word ProgramOffset ; Offset
         call LoadFile
 
         mov ax, word ProgramSeg
@@ -126,6 +129,8 @@ ProgramEndPoint:
     ; Let's pop off the values that the int instruction put to the stack
     pop ax
     pop bx
+    call FreeProgram
+
     mov ax, word KernelSeg
     mov ds, ax
     mov es, ax
@@ -135,6 +140,42 @@ ProgramEndPoint:
 
     jmp GetCommand.AddNewLine
 
+
+; Frees the memory occupied by a program
+FreeProgram:
+    mov bx, word ProgramSeg
+    mov ds, bx
+    add bx, word 0x10
+    mov es, bx
+
+    ; How many sectors to clear
+    mov ax, word [ds:0] ; Get file size in KB
+    mov cx, word 2
+    mul cx
+
+    mov dx, bx ; Whre the program code starts
+
+    .ClearSector:
+        test ax, ax
+        jz .Exit
+
+        mov cx, word 256 ; Words per sector
+        xor bx, bx
+
+        .ZeroOutIt:
+            mov word [es:bx], word 0
+            add bx, 2
+
+            loop .ZeroOutIt
+
+        dec ax
+        add dx, word 0x20 ; Next sector
+        mov es, dx
+
+        jmp .ClearSector
+
+    .Exit:
+        ret
 
 
 ; Gets some useful information about the system from BDA(Bios Data Area)
@@ -237,4 +278,4 @@ MascLogo: db "  \  |                      _ \   ___|", 0
 MascLogo1: db " |\/ |   _` |   __|   __|  |   |\___ \", 0
 MascLogo2: db " |   |  (   | \__ \  (     |   |      |", 0
 MascLogo3: db "_|  _| \__._| ____/ \___| \___/ _____/", 0
-WelcomeMessage: db 10, 13, "                         Welcome to MascOS! Loading...", 0
+WelcomeMessage: db NewLine, "                         Welcome to MascOS! Loading...", 0

@@ -111,6 +111,29 @@ ApmSystemShutdown:
         hlt
 
 
+ApmStandby:
+    cmp byte [ApmErrorByte], byte 1
+    jge .NoStandby
+
+    cmp byte [ApmMinorVersion], byte 1
+    jl .NoStandby
+
+    mov ah, byte 0x53
+    mov al, byte 0x7
+    mov bx, 1 ; All devices
+    mov cx, 1 ; Standby
+    int 0x15
+    jc ApmSystemShutdown.Error
+
+    ret
+
+    .NoStandby:
+        lea si, ApmShutdownError
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+        ret
 
 ApmGeneralError: db 10, 13, "APM error while running ApmInit", 0
 ApmOldVerMessage: db "Old APM version: v1.0", 0

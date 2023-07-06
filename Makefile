@@ -3,17 +3,17 @@
 # https://wiki.osdev.org/Loopback_Device
 # https://wiki.osdev.org/Bootable_Disk
 
-Asm := nasm
+override Asm := nasm
 
-BuildDir := Build/
-BootloaderDir := Bootloader/
-KernelDir := Kernel/
-ProgramsDir := Programs/
-FilesDir := Files/
+override BuildDir := Build/
+override BootloaderDir := Bootloader/
+override KernelDir := Kernel/
+override ProgramsDir := Programs/
+override FilesDir := Files/
 
 OsFiles := $(shell find -L $(FilesDir) -type f)
 OsPrograms := $(shell find -L $(ProgramsDir) -type f -name "*.asm")
-OsProgramsObjs := $(patsubst %.asm, %.bin, $(subst $(ProgramsDir), $(BuildDir), $(OsPrograms)))
+OsProgramsObjs := $(patsubst %.asm, %.com, $(subst $(ProgramsDir), $(BuildDir), $(OsPrograms)))
 
 BootloaderDirStable := Stable/Bootloader/
 KernelDirStable := Stable/Kernel/
@@ -22,18 +22,20 @@ BootloaderFlags := -IBootloader/
 KernelFlags := -IKernel/
 
 
+.PHONY: all
 all: CheckUser CreateBuildDir main
 
 
 # Non-stable version
 main:
+	clear
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDir)Bootloader.asm -o $(BuildDir)Bootloader.bin
 
 	@echo -e "\n\e[0;32m==> Compiling kernel and programs...\e[0m"
 	$(Asm) -f bin $(KernelFlags) $(KernelDir)Kernel.asm -o $(BuildDir)Kernel.bin
-	$(Asm) -f bin $(ProgramsDir)TrashVim.asm -o $(BuildDir)TrashVim.bin
-	$(Asm) -f bin $(ProgramsDir)Hi.asm -o $(BuildDir)Hi.bin
+	$(Asm) -f bin $(ProgramsDir)TrashVim.asm -o $(BuildDir)TrashVim.com
+	$(Asm) -f bin $(ProgramsDir)Hi.asm -o $(BuildDir)Hi.com
 
 	@echo -e "\n\e[0;32m==> Creating image...\e[0m"
 	rm -rf $(BuildDir)/MascOS.flp
@@ -55,18 +57,26 @@ main:
 	@echo -e "\n\e[0;32m==> Copying bootloader to image...\e[0m"
 	dd status=noxfer conv=notrunc count=1 if=$(BuildDir)Bootloader.bin of=$(BuildDir)MascOS.flp
 
+	sudo chmod -R a=rwx $(BuildDir)
 
+
+.PHONY: debug run
 debug:
 	qemu-system-i386 -fda $(BuildDir)MascOS.flp -M smm=off -no-shutdown -no-reboot -d int -monitor stdio -D ./QemuLog.log \
- -cpu 486 -audiodev alsa,driver=alsa,id=audio0 -machine pcspk-audiodev=audio0
+    -cpu 486 -rtc base=localtime,clock=host \
+    -audiodev pa,id=snd0,server=/run/user/1000/pulse/native -device ich9-intel-hda -device hda-output,audiodev=snd0
 	
 
 run:
-	qemu-system-i386 -fda $(BuildDir)MascOS.flp -M smm=off -no-shutdown -no-reboot -d int -cpu 486 -audiodev alsa,driver=alsa,id=audio0 -machine pcspk-audiodev=audio0
+	qemu-system-i386 -fda $(BuildDir)MascOS.flp -M smm=off -no-shutdown -no-reboot \
+	-cpu 486 -rtc base=localtime,clock=host \
+	-audiodev pa,id=snd0,server=/run/user/1000/pulse/native -device ich9-intel-hda -device hda-output,audiodev=snd0
 
 
 # Stable version
+.PHONY: stable
 stable: CheckUser CreateBuildDir
+	clear
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDirStable)Bootloader.asm -o $(BuildDir)Bootloader.bin
 
@@ -75,7 +85,8 @@ stable: CheckUser CreateBuildDir
 
 	@echo -e "\n\n\e[0;32m==> Finishing up...\e[0m"
 	cat $(BuildDir)Bootloader.bin $(BuildDir)Kernel.bin > $(BuildDir)MascOS.img
-	qemu-system-i386 -fda "Build/MascOS.img" -M smm=off -no-shutdown -no-reboot -d int -full-screen
+	qemu-system-i386 -fda $(BuildDir)MascOS.img -M smm=off -no-shutdown -no-reboot \
+	-cpu 486 -rtc base=localtime,clock=host \
 
 
 
@@ -87,6 +98,7 @@ CreateBuildDir:
 	
 
 # Checks if the user has permissions to mount an image
+.PHONY: CheckUser clean
 CheckUser:
 	@if ! [ "$(shell id -u)" = 0 ]; then \
 		echo -e "\e[0;31mYou need to be root to mount the image.\n\e[0mUse \"sudo su\" to give yourself permission or add a \"sudo\" before your command\n"; \
@@ -95,4 +107,4 @@ CheckUser:
 
 
 clean:
-	rm -rf $(BuildDir)/*
+	rm -rf $(BuildDir)*

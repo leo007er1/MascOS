@@ -113,6 +113,54 @@ LsCmd:
         jmp GetCommand.AddNewDoubleLine
         
 
+touchCmd:
+    or ah, ah
+    jz .NoArg
+
+    lea si, FileNameBuffer
+    mov cl, byte [NormalColour]
+    xor bl, bl
+
+    .NextChar:
+        cmp bl, 11 ; 11 is the maximum file name lenght
+        jge .CarriageReturn
+
+        xor ax, ax
+        int 0x16
+
+        cmp al, byte 13
+        je .CarriageReturn
+
+        call VgaPrintChar
+        mov byte [ds:si], al ; Move char to buffer
+        inc bl
+        inc si
+
+        jmp .NextChar
+
+    .CarriageReturn:
+        ; If the name is shorter than 4 bytes throw an error
+        cmp bl, byte 4
+        jl .NameTooShort
+
+        ; call CreateFile
+
+
+    .NameTooShort:
+        lea si, TouchNameTooShort
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+        jmp GetCommand.AddNewLine
+
+    .NoArg:
+        lea si, TouchNoArg
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+        jmp GetCommand.AddNewLine
 
 
 
@@ -125,9 +173,12 @@ RebootCmd:
 
 ShutdownCmd:
     call ApmSystemShutdown
-
     jmp GetCommand.AddNewLine
 
+
+StandbyCmd:
+    call ApmStandby
+    jmp GetCommand.AddNewLine
 
 
 ; Why not, I mean
@@ -200,61 +251,41 @@ TimeCmd:
 
 ; Mom, why doesn't this work?
 SoundCmd:
-    mov ax, word 1193
+    call InitPitSound
+    mov bx, word 2000
     call PlaySound
 
     jmp GetCommand.AddNewLine
 
 
+ColourCmd:
+    or ah, ah
+    jz .NoArg
 
-CatCmd:
-    test al, al
-    jz .Error
-
-    ; Checks and gets pointer to entry in just 4 lines, cool!
     lea si, AttributesBuffer
-    call SearchFile
-    jc .BadArgument
+    lea di, ColourResetString
+    call StringCompare
+    jc .GetColours
 
-    .Continue:
-        mov bx, word ProgramSeg
-        mov es, bx
-        mov di, cx
-        xor bx, bx
-        call LoadFile
+    mov al, VgaDefaultColour
+    mov bl, 0x0a
+    jmp .ResetScreen
 
-        mov al, byte 1
-        call VgaNewLine
+    .GetColours:
+        lea si, AttributesBuffer
+        call StringHexToInt
+        mov al, ch
+        mov bl, cl
 
-        mov si, word 0x1800
-        mov al, byte [NormalColour]
-        call VgaPrintString
+    .ResetScreen:
+        call VgaPaintScreen
+        jmp .BackToShell
 
-        mov bx, word KernelSeg
-        mov es, bx
-
-        jmp GetCommand.AddNewDoubleLine
-
-    .BadArgument:
-        mov al, byte 1
-        call VgaNewLine
-
-        lea si, TrashVimProgramBadArgument
+    .NoArg:
+        lea si, ColourNoArg
         mov al, byte [AccentColour]
         and al, 0xfc ; Red
         call VgaPrintString
-
-    .Error:
-        jmp GetCommand.AddNewLine
-
-
-
-
-ColourCmd:
-    mov al, byte 0x71
-    mov bl, byte 0x7e
-
-    call VgaPaintScreen
 
     .BackToShell:
         jmp GetCommand.AddNewLine
@@ -309,7 +340,7 @@ FetchCmd:
 
 
 TrashVimCmd:
-    test al, al
+    or ah, ah
     jz .Error
 
     ; Checks and gets pointer to entry in just 4 lines, cool!
@@ -335,7 +366,7 @@ TrashVimCmd:
 
 
 RunCmd:
-    test al, al
+    or ah, ah
     jz TrashVimCmd.Error
 
     lea si, AttributesBuffer
@@ -363,8 +394,10 @@ RunCmd:
 
 
 
-HelpText: db "  clear = clears the terminal", 10, 13, "  ls = list all files", 10, 13, "  time = show time and date", 10, 13, "  cat = show file contents", 10, 13, "  edit = edit text files", 10, 13, "  reboot = reboots the system", 10, 13, "  shutdown = shutdown the computer", 10, 13, "  fetch = show system info", 10, 13, "  colour = change screen colours", 10, 13, "  himom = ???", 0
-HimomText: db "Mom: No one cares about you, honey", 10, 13, "Thanks mom :(", 0
+HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  time = show time and date", NewLine, \
+"  edit = edit text files", NewLine, "  run = execute a program", NewLine, "  reboot = reboots the system", NewLine, "  shutdown = shutdown the computer", NewLine, \
+"  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  himom = ???", 0
+HimomText: db "Mom: No one cares about you, honey", NewLine, "Thanks mom :(", 0
 
 TimeString: times 16 db 32
 db 0
@@ -376,8 +409,8 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.2.0", 0
-FetchText3: db "18.11KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
+FetchText2: db "0.2.1", 0
+FetchText3: db "21.86KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
 FetchTextRam: times 6 db 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0
@@ -386,11 +419,18 @@ FetchLogo3: db "    )U(  _) ", 0
 FetchLogo4: db "   /   \(   ", 0
 FetchLogo5: db "  (/`-'\)   ", 0
 
+ColourNoArg: db NewLine, "Insert background and foreground colors in hexadecimal, or type reset to use def", NewLine, "ault colours. ", "Example: 0x818a", 0
+ColourResetString: db "reset", 0
+
 ; Ls command data
 LsNoFiles: db "File not found", 0
 LsDummyFileName: times 11 db 0
 LsFileNameSpace: db "   ", 0
 
+; Touch command
+TouchNoArg: db NewLine, "No file name inserted", 0
+TouchNameTooShort: db NewLine, "File name must be at least 4 characters(file extension included)", 0
+
 ; TrashVim program stuff
-TrashVimProgramFileName: db "TRASHVIMBIN", 0
+TrashVimProgramFileName: db "TRASHVIMCOM", 0
 TrashVimProgramBadArgument: db "File doesn't exist", 0

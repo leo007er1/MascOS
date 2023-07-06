@@ -28,9 +28,9 @@ Ubuntu/Linux Mint
 sudo apt install qemu
 ```
 
-After installing Qemu just execute `Run.sh` with:
+After installing Qemu just do:
 ```sh
-sh Run.sh
+make run
 ```
 
 If you want to run this on real hardware you need a computer with legacy BIOS and not a modern UEFI system, since MascOS aims to run on old hardware, and it will hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
@@ -51,7 +51,7 @@ make stable
 
 If you want to compile the latest version run:
 ```sh
-make
+sudo make
 ```
 
 Also if you want to remove the compiled files and the os image run:
