@@ -6,6 +6,48 @@ MascOS uses some custom interrupts to allow external programs to use useful stuf
 End of program interrupt.
 This interrupt gets invoked whenever an external program ends it's job and wants to **pass control to the kernel**. Doesn't expect any input, just call the interrupt.
 
+## Int 0x21
+This is the same interrupt as the MS DOS one. You can find the list of the functions of this interrupt online. Here's the [first one I found online.](http://spike.scu.edu.au/~barry/interrupts.html)
+
+I only have implemented the functions for ah set to 0x1 to 0xa exluding 0x5, and 0x19, 0x2a, 0x2c, 0x4c.
+
+## Int 0x22
+Disk routines for searching, loading files by messing with the FAT12 file system.
+
+### Search a file
+Finds a file in the root directory of FAT12, returning the pointer of the entry.
+
+`ah` = 0<br>
+`si` = pointer to file name. Needs to be a zero terminated string of 11 characters.
+
+**Output**<br>
+`carry flag` = clear for success, set for error<br>
+`dx` = the given value in `si`<br>
+`cx` = pointer to entry in root dir
+
+### Load a file
+Loads a file at the specified offset in memory. The offset is specified by `es:bx`.
+Just don't write mistakenly(or on purpose?) write over the kernel or at any lower memory offset.
+
+`ah` = 1<br>
+`di` = pointer to entry in root dir<br>
+`es:bx` = offset to read to
+
+### Get a file name
+Gets the name and file extension of a file, via the specified pointer to the entry in the root directory.
+
+`ah` = 2<br>
+`si` = pointer to string to output name to. Needs to be 12 characters because remember the 0 at the end.
+
+### Get a file size
+Gets the file size and returns the value in kilobytes(KB).
+
+`ah` = 3<br>
+`si` = pointer to entry in root directory
+
+**Output**<br>
+`ax` = file size in KB
+
 
 ## Int 0x23
 Screen output throught VGA driver.
@@ -68,44 +110,3 @@ This function will return the colours that are currently used for printing text 
 **Output**<br>
 `bl` = text colour, the one used for almost everything
 `bh` = accent colour, for example this is used for the command prompt arrow thinghy
-
-
-## Int 0x22
-Disk routines for searching, loading files by messing with the FAT12 file system.
-
-### Search a file
-Finds a file in the root directory of FAT12, returning the pointer of the entry.
-
-`ah` = 0<br>
-`si` = pointer to file name. Needs to be a zero terminated string of 11 characters.
-
-**Output**<br>
-`carry flag` = clear for success, set for error<br>
-`dx` = the given value in `si`<br>
-`cx` = pointer to entry in root dir
-
-
-### Load a file
-Loads a file at the specified offset in memory. The offset is specified by `es:bx`.
-Just don't write mistakenly(or on purpose?) write over the kernel or at any lower memory offset.
-
-`ah` = 1<br>
-`di` = pointer to entry in root dir<br>
-`es:bx` = offset to read to
-
-
-### Get a file name
-Gets the name and file extension of a file, via the specified pointer to the entry in the root directory.
-
-`ah` = 2<br>
-`si` = pointer to string to output name to. Needs to be 12 characters because remember the 0 at the end.
-
-
-### Get a file size
-Gets the file size and returns the value in kilobytes(KB).
-
-`ah` = 3<br>
-`si` = pointer to entry in root directory
-
-**Output**<br>
-`ax` = file size in KB

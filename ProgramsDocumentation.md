@@ -10,6 +10,7 @@ You first need to know some stuff first, such as how a program gets loaded and h
 The general layout of a program is this:
 ```x86asm
 [bits 16]
+[org 0x100]
 [cpu 8086]
 
 
@@ -42,6 +43,8 @@ call LoadProgram
 cli
 hlt
 ```
+
+The location in memory of the program is decided by the os, but like in MS DOS the **actual file is loaded at offset 0x100**, this is why the `org` directive *must* be set to 0x100. Don't use the memory area before that address.
 
 <!-- Basically to run a program you first need to **load it in memory**, and for this you can call `int 0x22` with `ah = 1` and pass the required values, [check the interrupts documentation out](InterruptsDocumentation.md). Then you can maybe safely jump to your programs code in memory, just do a **far jump** like this one. In this case we loaded the program at `0x9600`. 
 
@@ -79,5 +82,12 @@ int 0x20
 
 This interrupt doesn't expect any input.
 
+Alternatively you can use MS DOS interrupt 0x21 with ah set to 0x4c.
+```x86asm
+; Exit and go back to shell
+mov ah, byte 0x4c
+int 0x21
+```
+
 ## Interrupts
-The kernel adds custom interrupts to the IVT(Interrupt Vector Table), so external programs can utilize VGA functions, disk functions and more, which allows to print strings, load files in memory, find a file and much more. To see the complete list of interrupts you can head to the [interrupts documentation](InterruptsDocumentation.md).
+MS DOS interrupt 0x21(int 0x21) is present, but the kernel also adds custom interrupts to the IVT(Interrupt Vector Table), so external programs can utilize VGA functions, disk functions and more, which allows to print strings, load files in memory, find a file and much more. To see the complete list of interrupts you can head to the [interrupts documentation](InterruptsDocumentation.md).
