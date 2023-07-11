@@ -5,66 +5,55 @@
 ; https://forum.osdev.org/viewtopic.php?f=13&t=17293
 
 
-PitIrqOffset equ 0x20 ; Offset in IVT
 
+SoundIntHandler:
+    or ah, ah
+    jnz .StopSound
+    call PlaySound
+    jmp .Exit
 
-; Sets IRQ0 to our code
-InitSound:
-    cli
+    .StopSound:
+        cmp ah, byte 1
+        jne .Exit
+        call StopSound
 
-    xor ax, ax
-    mov es, ax
-    mov bx, word KernelSeg
-
-    mov word [es:PitIrqOffset], Irq0Isr
-    mov word [es:PitIrqOffset + 2], bx
-
-    mov es, bx
-
-    ; call InitPitSound
-
-    sti
-    ret
+    .Exit:
+        mov al, byte 0x20
+        out 0x20, al
+        iret
 
 
 ; Plays a sound with the given frequency
 ; Input:
 ;   bx = frequency divided by 1193180
 PlaySound:
-    mov ax, 0x34dd
-    mov dx, 0x0012
-    cmp dx, bx
-    jnc .End
+    push ax
 
-    div bx
-    mov bx, ax
-    
-    ; Get the position of speaker from bit 1 of port 0x61 of keyboard controller
-    in al, 0x61
-    test al, byte 3
-    jnz .a99
-
-    or al, 3
-    out 0x61, al
-    
     ; Reprogram PIT channel 2 to be a square wave generator 
     mov al, byte 0xb6
     out 0x43, al
 
-    .a99:
-        mov al, bl
-        out 0x42, al
-        mov al, bh
-        out 0x42, al
+    mov ax, bx
+    out 0x42, al
+    mov al, ah
+    out 0x42, al
 
-    .End:
-        ret
+    ; Get the position of speaker from bit 1 of port 0x61 of keyboard controller
+    in al, 0x61
+    or al, 3
+    out 0x61, al
+
+    pop ax
+    ret
 
 
 
 StopSound:
+    push ax
+
     in al, 0x61
     and al, 11111100b
     out 0x61, al
 
+    pop ax
     ret

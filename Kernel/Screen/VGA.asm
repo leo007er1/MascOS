@@ -232,11 +232,11 @@ VgaIntHandler:
 
     .NoClearLine:
         cmp ah, byte 5
-        jne .NoPaintLine
-        call VgaPaintLine
+        jne .NoPaint
+        call VgaPaint
         jmp .Exit
 
-    .NoPaintLine:
+    .NoPaint:
         cmp ah, byte 6
         jne .NoClearScreen
         call VgaClearScreen
@@ -250,12 +250,17 @@ VgaIntHandler:
 
     .NoBackspace:
         cmp ah, byte 8
-        jne .Exit
+        jne .NoGetColours
         call VgaGetColours
+        jmp .Exit
+
+    .NoGetColours:
+        cmp ah, byte 9
+        jne .Exit
+        call VgaGotoPos
 
     .Exit:
         ; Tell the PIC we are done with interrupt
-        ; No idea why but let's do it
         mov al, 0x20
         out 0x20, al
 
@@ -268,6 +273,7 @@ VgaIntHandler:
 ;   si = pointer to string
 ;   al = attribute(foreground and background colour)
 VgaPrintString:
+    push ax
     push bx
     push cx
     push dx
@@ -349,6 +355,7 @@ VgaPrintString:
         pop dx
         pop cx
         pop bx
+        pop ax
 
         VgaSetCursor
 
@@ -415,57 +422,103 @@ VgaGotoLine:
     ret
 
 
+; Goes to a specified coordinate
+; Input:
+;   bl = x position(max 80)
+;   bh = y position(max 24)
+VgaGotoPos:
+    push ax
+    push bx
+    push cx
+    push ds
+
+    mov ax, word KernelSeg
+    mov ds, ax
+
+    mov byte [CurrentColumn], bl
+    mov byte [CurrentRow], bh
+
+    ; (bh * VgaColumns + bl) * 2
+    xor ax, ax
+    xchg al, bh
+    mov dx, VgaColumns
+    mul dx
+    add ax, bx
+    mov cl, 1
+    shl ax, cl
+
+    mov word [CursorPos], ax
+    VgaSetCursor
+
+    pop ds
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+
 ; Paints the foreground and background of a line with the given colour
 ; Input:
-;   cl = line
+;   cx = number of columns to change colour of
+;   bl = x position(max 80)
+;   bh = y position(max 24)
 ;   al = attribute byte
-VgaPaintLine:
+VgaPaint:
+    push ax
+    push bx
+    push cx
+    push dx
     push ds
-    mov bx, word KernelSeg
-    mov ds, bx
+    push es
+    mov dx, word KernelSeg
+    mov ds, dx
+    mov dx, VgaBuffer
+    mov es, dx
 
     ; Can't do something like: push word [CursorPos]
-    mov bx, word [CursorPos]
-    push bx
-    mov bl, byte [CurrentColumn]
-    xor bh, bh
-    push bx
-    push es
+    mov dx, word [CursorPos]
+    push dx
+    mov dx, word [CurrentRow] ; Moves CurrentColumn too because together they are 2 bytes, we move a word both of them
+    push dx
+
+    mov byte [CurrentColumn], bl
+    mov byte [CurrentRow], bh
+
     push ax
+    push cx
+    ; (bh * VgaColumns + bl) * 2
+    xor ax, ax
+    xchg al, bh
+    mov dx, VgaColumns
+    mul dx
+    add ax, bx
+    mov cl, 1
+    shl ax, cl
 
-    ; Calculates the cursor position
-    xor ah, ah
-    mov al, cl
-    xor dx, dx
-    mov bx, word 160
-    mul bx
+    inc ax ; Select first attribute byte
+    pop cx
+    pop bx
+    xchg ax, bx
     
-    mov word [CursorPos], ax
-    mov cx, VgaColumns ; Counter
-    inc word [CursorPos] ; We select the attribute byte, since after we add 2 to CursorPos it will skip the character byte
-    pop ax
-
-    mov bx, VgaBuffer
-    mov es, bx
-    mov bx, word [CursorPos]
-
     .Loop:
         mov byte [es:bx], al
         add bx, 2
 
         loop .Loop
-
+    
     .Exit:
-        mov word [CursorPos], bx
+        pop dx
+        mov word [CurrentRow], dx ; Sets CurrentColumn too
+        pop dx
+        mov word [CursorPos], dx
+
         pop es
-        pop bx
-        mov byte [CurrentColumn], bl
-        pop bx
-        mov word [CursorPos], bx
-
         pop ds
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         ret
-
 
 
 ; Scrolls a line down
@@ -601,14 +654,14 @@ VgaClearLine:
     mov bx, word 160
     mul bx
 
-    mov word [CursorPos], ax
+    push ax
     mov cx, VgaColumns ; Counter
     xor al, al
     mov ah, byte [NormalColour]
 
     mov bx, VgaBuffer
     mov es, bx
-    mov bx, word [CursorPos]
+    pop bx
 
     .Loop:
         mov word [es:bx], ax

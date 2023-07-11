@@ -13,14 +13,12 @@ PrintString:
     .Loop:
         lodsb ; Loads the current byte into al
 
-        test al, al
-        je .Exit
+        or al, al
+        jz .Exit
 
         int 0x10
-
         jmp .Loop
 
     .Exit:
         pop ax
-
         ret

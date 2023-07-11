@@ -74,7 +74,7 @@ ClearCmd:
     jmp GetCommand.SkipNewLine
 
 
-; It's ugly for now, but I might have an idea to just use a loop
+
 LsCmd:
     mov al, 1
     call VgaNewLine
@@ -111,7 +111,21 @@ LsCmd:
         mov es, ax
 
         jmp GetCommand.AddNewDoubleLine
+
+
+FilesCmd:
+    mov bx, word ProgramSeg
+    mov es, bx
+
+    mov bx, 2
+    mov word [es:bx], word RootDirMemLocation
+
+    lea si, FilesProgramFileName
+    call LoadProgram
+
+    jmp GetCommand.AddNewLine
         
+
 
 touchCmd:
     or ah, ah
@@ -249,11 +263,16 @@ TimeCmd:
 
 
 
-; Mom, why doesn't this work?
 SoundCmd:
-    call InitPitSound
-    mov bx, word 2000
+    mov bx, word 500
     call PlaySound
+
+    mov cx, 0x2
+    mov dx, 0x4000
+    mov ah, 0x86
+    int 0x15
+
+    call StopSound
 
     jmp GetCommand.AddNewLine
 
@@ -394,9 +413,9 @@ RunCmd:
 
 
 
-HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  time = show time and date", NewLine, \
+HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  files = launch the file manager", NewLine, "  time = show time and date", NewLine, \
 "  edit = edit text files", NewLine, "  run = execute a program", NewLine, "  reboot = reboots the system", NewLine, "  shutdown = shutdown the computer", NewLine, \
-"  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  himom = ???", 0
+"  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  sound = test the pc speaker playing a sound", NewLine, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", NewLine, "Thanks mom :(", 0
 
 TimeString: times 16 db 32
@@ -426,6 +445,8 @@ ColourResetString: db "reset", 0
 LsNoFiles: db "File not found", 0
 LsDummyFileName: times 11 db 0
 LsFileNameSpace: db "   ", 0
+
+FilesProgramFileName: db "FILEMANACOM", 0
 
 ; Touch command
 TouchNoArg: db NewLine, "No file name inserted", 0

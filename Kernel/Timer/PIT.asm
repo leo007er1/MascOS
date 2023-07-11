@@ -14,20 +14,22 @@
 
 PitSoundReloadValue equ 27 ; Frequency: 44192
 TimerCountdown: dw 0
-Irq0PlaySound: db 0
+Irq0Offset equ 8 * 4
 
 
-InitPitSound:
-    ; ; Reprogram channel 2 to be a square wave generator 
-    ; mov al, 0xb6 ; Channel 2
-    ; out 0x43, al
+PitInit:
+    cli ; We are doing other important stuff, ok?
 
-    ; ; We want a frequency of 44192Hz, so the reload value is 27, because 27 * 44192 = 1193184Hz
-    ; mov ax, word PitSoundReloadValue
-    ; out 0x42, al
-    ; mov al, ah ; Hight byte
-    ; out 0x42, al
+    mov bx, word KernelSeg
+    xor ax, ax
+    mov es, ax
 
+    mov word [Irq0Offset], Irq0Isr
+    mov word [Irq0Offset + 2], bx
+
+    mov es, bx
+
+    sti
     ret
 
 
@@ -48,15 +50,7 @@ TimerWait:
 
 
 Irq0Isr:
-    cmp byte [Irq0PlaySound], 1
-    jne .Exit
+    mov al, byte 0x20
+    out 0x20, al
 
-    mov bx, 0x1000
-    call PlaySound
-
-    .Exit:
-        ; Send EOI to the PIC
-        mov al, 0x20
-        out 0x20, al
-
-        iret
+    iret

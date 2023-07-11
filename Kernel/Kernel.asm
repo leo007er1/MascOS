@@ -43,10 +43,9 @@ KernelMain:
     call VgaClearScreen ; Need to update values
     call GetBdaInfo
     call SetNewInterrupts
-    call InitSound
+    call PitInit
     call SerialInit
     call ApmInit
-    ; call InitSound
     
     call PrintLogo
 

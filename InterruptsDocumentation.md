@@ -85,12 +85,14 @@ Clears out a single line, attribute byte too.
 `ah` = 4<br>
 `al` = line to clear
 
-### Paint line
-Changes the attribute byte of the specified line.
+### Paint buffer
+Changes the attribute byte of a specified chunk of screen estate.
 
 `ah` = 5<br>
 `al` = attribute byte, colour<br>
-`cl` = line
+`cx` = how many columns to change colour to<br>
+`bh` = y position(max 24)<br>
+`bl` = x position(max 80)
 
 ### Clear screen
 Yup, it clears the screen.
@@ -111,3 +113,24 @@ This function will return the colours that are currently used for printing text 
 **Output**<br>
 `bl` = text colour, the one used for almost everything
 `bh` = accent colour, for example this is used for the command prompt arrow thinghy
+
+### Goto position
+Changes the cursor position to the specified position onto the screen.
+
+`ah` = 9<br>
+`bh` = y position(max 24)<br>
+`bl` = x position(max 80)
+
+## Int 0x24
+Used to play and stop sound using the pc speaker.
+
+### Play sound
+Plays a sound of the specified frequency.
+
+`ah` = 0<br>
+`bx` = frequency(minimum 80 or you won't hear anything) 
+
+### Stop sound
+Shuts up the pc speaker.
+
+`ah` = 1

@@ -36,6 +36,7 @@ main:
 	$(Asm) -f bin $(KernelFlags) $(KernelDir)Kernel.asm -o $(BuildDir)Kernel.bin
 	$(Asm) -f bin $(ProgramsDir)TrashVim.asm -o $(BuildDir)TrashVim.com
 	$(Asm) -f bin $(ProgramsDir)Hi.asm -o $(BuildDir)Hi.com
+	$(Asm) -f bin $(ProgramsDir)FileManager.asm -o $(BuildDir)FileManager.com
 
 	@echo -e "\n\e[0;32m==> Creating image...\e[0m"
 	rm -rf $(BuildDir)/MascOS.flp
@@ -64,13 +65,13 @@ main:
 debug:
 	qemu-system-i386 -fda $(BuildDir)MascOS.flp -M smm=off -no-shutdown -no-reboot -d int -monitor stdio -D ./QemuLog.log \
     -cpu 486 -rtc base=localtime,clock=host \
-    -audiodev pa,id=snd0,server=/run/user/1000/pulse/native -device ich9-intel-hda -device hda-output,audiodev=snd0
+    -audiodev pa,id=snd0,server=/run/user/1000/pulse/native -machine pcspk-audiodev=snd0
 	
 
 run:
 	qemu-system-i386 -fda $(BuildDir)MascOS.flp -M smm=off -no-shutdown -no-reboot \
 	-cpu 486 -rtc base=localtime,clock=host \
-	-audiodev pa,id=snd0,server=/run/user/1000/pulse/native -device ich9-intel-hda -device hda-output,audiodev=snd0
+	-audiodev pa,id=snd0,server=/run/user/1000/pulse/native -machine pcspk-audiodev=snd0
 
 
 # Stable version

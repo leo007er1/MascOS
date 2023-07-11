@@ -17,7 +17,7 @@ nop
 
 
 
-OEMidentifier: db "MascOS  "
+OEMidentifier: db "MASCOS  "
 BytesPerSector: dw 512
 SectorsPerCluster: db 1
 ReservedSectors: dw 1 ; Sectors for boot record
@@ -36,7 +36,7 @@ DriveNumber: db 0 ; Should be equal to the value returned in dl
 ReservedByte: db 0 ; Always 0
 Signature: db 0x29 ; Or 0x28 or 0x29
 VolumeId: dd 0 ; Ignore I you aren't willing to put one
-VolumeLabel: db "MascOS     " ; Anything but must be 11 bytes
+VolumeLabel: db "MASCOS     " ; Anything but must be 11 bytes
 FileSystem: db "FAT12   " ; Don't touch pls
 
 

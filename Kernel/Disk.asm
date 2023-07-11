@@ -10,11 +10,6 @@
 
 
 
-; We load only the first FAT after the IVT and reserve 4.5KB to it
-FATMemLocation equ 0x50
-; We load the root directory after the FAT and reserve 7KB to it
-RootDirMemLocation equ 0x170
-
 ; Stuff from BPB
 RootDirEntries equ 224
 SectorsPerTrack equ 18

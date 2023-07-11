@@ -24,14 +24,6 @@
 ; https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
 
 
-; *NOTE: if you change these values make sure to change the ones in Disk.asm file in the kernel
-; We load only the first FAT after the IVT and reserve 4.5KB to it
-FATMemLocation equ 0x500
-; We load the root directory after the FAT and reserve 7KB to it
-RootDirMemLocation equ 0x1700
-
-
-
 
 ; Reads the disk into the specified buffer in memory
 ; Input:
@@ -81,7 +73,7 @@ LoadFAT:
     mov ax, word [ReservedSectors]
     call LbaToChs
 
-    mov bx, FATMemLocation
+    mov bx, FATMemLocationOffset
     mov al, [SectorsPerFAT] ; Sectors to read
     call ReadDisk
 
@@ -95,7 +87,7 @@ LoadRootDir:
     mov ax, word [RootDirStartPoint]
     call LbaToChs
 
-    mov bx, RootDirMemLocation
+    mov bx, RootDirMemLocationOffset
     mov al, [RootDirSize] ; Sectors to read
     call ReadDisk
 
@@ -103,7 +95,7 @@ LoadRootDir:
 
 ; Searches for an entry in the root dir with the kernel file name
 SearchKernel:
-    mov di, RootDirMemLocation
+    mov di, RootDirMemLocationOffset
     mov ax, word [RootDirEntries] ; Counter
 
     .NextEntry:
@@ -120,7 +112,7 @@ SearchKernel:
 
         add di, 32 ; Every entry is 32 bytes
 
-        test ax, ax
+        or ax, ax
         jnz .NextEntry
 
         ; Nope. Nope.
@@ -161,7 +153,7 @@ LoadKernel:
         add ax, bx
 
         ; Get the 12 bits
-        mov bx, FATMemLocation
+        mov bx, FATMemLocationOffset
         add bx, ax
         mov ax, word [bx]
 

@@ -72,7 +72,6 @@ StringCompare:
 ;   si = pointer to string to output result to
 IntToString:
     ; We divide by 10 till the quotient is 0. If it's 0 then we arrived to the end of the number
-
     push bx
     push cx
     push dx
@@ -87,25 +86,23 @@ IntToString:
         push dx ; DX is the remainder
         inc cx
 
-        test ax, ax ; If not 0
+        or ax, ax ; If not 0
         jnz .GetRemainders
-
 
     .AssembleString:
         pop dx
 
         add dl, byte "0" ; We need to convert the number to a string
-        mov [si], byte dl
+        mov byte [si], dl
         inc si
         dec cx
 
-        test cx, cx
+        or cx, cx
         jnz .AssembleString
 
     pop dx
     pop cx
     pop bx
-
     ret
 
 

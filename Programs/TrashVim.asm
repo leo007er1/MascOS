@@ -82,7 +82,8 @@ EditProgram:
 
     ; Paint bottom line
     mov ah, byte 5
-    mov cl, byte 24
+    mov cx, word 80
+    mov bx, word 0x1800
     mov al, byte [NormalColour]
     and al, byte 0xf7
     int 0x23
@@ -163,7 +164,8 @@ ModeSelector:
 
                 mov ah, byte 5
                 mov al, byte BarsDefaultColour
-                mov cl, byte 24
+                mov cx, word 80
+                mov bx, word 0x1800
                 int 0x23
 
                 mov ah, byte 3
@@ -223,7 +225,8 @@ TextEdit:
 
         mov ah, byte 5
         mov al, byte BarsDefaultColour
-        mov cl, byte 24
+        mov cx, word 80
+        mov bx, word 0x1800
         int 0x23
 
         xor ah, ah

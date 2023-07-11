@@ -79,6 +79,10 @@ GetCommand:
             call CompareCommand
             jnc TimeCmd
 
+            lea di, filesCmdStr
+            call CompareCommand
+            jnc FilesCmd
+
             lea di, trashVimCmdStr
             call CompareCommand
             jnc TrashVimCmd
@@ -401,6 +405,7 @@ timeCmdStr: db "time", 0xff
 shutdownCmdStr: db "shutdown", 0xff
 standbyCmdStr: db "standby", 0xff
 runCmdStr: db "run", 0xff
+filesCmdStr: db "files", 0xff
 
 
 %include "./Kernel/ShellCommands.asm"
