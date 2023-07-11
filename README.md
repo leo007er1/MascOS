@@ -33,6 +33,7 @@ After installing Qemu just do:
 make run
 ```
 
+It uses PulseAudio to emulate the pc speaker.
 If you want to run this on real hardware you need a computer with legacy BIOS and not a modern UEFI system, since MascOS aims to run on old hardware, and it will hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
 
 ## Compiling
