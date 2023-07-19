@@ -27,6 +27,8 @@ DosInt21:
     ; je ah0b
     ; cmp ah, byte 0xc
     ; je ah0c
+    cmp ah, byte 0xd
+    je ah0d
     cmp ah, byte 0x19
     je ah19
     cmp ah, byte 0x2a
@@ -35,6 +37,8 @@ DosInt21:
     je ah2c
     cmp ah, byte 0x4c
     je ah4c
+    cmp ah, byte 0x56
+    je ah56
 
     jmp ReturnFromInt
 
@@ -178,6 +182,25 @@ ah0a:
         jmp ReturnFromInt
 
 
+; Reset disk
+ah0d:
+    push ax
+    push dx
+
+    push ds
+    mov dx, word KernelSeg
+    mov ds, dx
+
+    xor ah, ah
+    mov dl, byte [CurrentDisk]
+    int 0x13
+
+    pop ds
+    pop dx
+    pop ax
+    jmp ReturnFromInt
+
+
 ; Get current default drive
 ah19:
     push bx
@@ -185,7 +208,7 @@ ah19:
     push ds
     mov bx, word KernelSeg
     mov ds, bx
-    mov al, byte [BootDisk]
+    mov al, byte [CurrentDisk]
     pop ds
 
     pop bx
@@ -223,6 +246,13 @@ ah2c:
 ; Exit program
 ah4c:
     jmp ProgramEndPoint
+
+
+; Rename file
+ah56:
+    call RenameFile
+
+    jmp ReturnFromInt
 
 
 ReturnFromInt:

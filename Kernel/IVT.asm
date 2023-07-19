@@ -21,7 +21,7 @@ SetNewInterrupts:
 
     xor ax, ax
     mov es, ax
-    mov cx, 5 ; Number of Ints
+    mov cx, 6 ; Number of Ints
     mov bx, word 0x80 ; Offset for the IVT
     lea si, IntTable
 
@@ -52,3 +52,4 @@ IntTable:
     dw DiskIntHandler ; Int 0x22
     dw VgaIntHandler ; Int 0x23
     dw SoundIntHandler ; Int 0x24
+    dw EndProgramAndRunAnother ; Int 0x25

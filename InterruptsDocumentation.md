@@ -9,7 +9,7 @@ This interrupt gets invoked whenever an external program ends it's job and wants
 ## Int 0x21
 This is the same interrupt as the MS DOS one. You can find the list of the functions of this interrupt online. Here's the [first one I found online.](http://spike.scu.edu.au/~barry/interrupts.html)
 
-I only have implemented the functions for ah set to 0x1 to 0xa exluding 0x5, and 0x19, 0x2a, 0x2c, 0x4c.
+I only have implemented the functions for ah set to 0x1 to 0xa exluding 0x5, then 0xd, 0x19, 0x2a, 0x2c, 0x4c, 0x56.
 
 ## Int 0x22
 Disk routines for searching, loading files by messing with the FAT12 file system.
@@ -48,6 +48,16 @@ Gets the file size and returns the value in kilobytes(KB).
 **Output**<br>
 `ax` = file size in KB
 `dx` = remainder in bytes
+
+## Rename file
+Renames a file including the extension. To rename a file you need a valid FAT12 file name, so 8 bytes for the name and 3 for the extension.
+
+`ah` = 4<br>
+`ds:si` = pointer to file to rename<br>
+`es:di` = pointer to new file name
+
+**Output**<br>
+`carry flag` = set for invalid file name, clear for success
 
 
 ## Int 0x23
@@ -130,7 +140,18 @@ Plays a sound of the specified frequency.
 `ah` = 0<br>
 `bx` = frequency(minimum 80 or you won't hear anything) 
 
+## Play track
+Plays a series of frequencies to mimic a music track. The track must be null-terminated. A single frequency is 2 bytes large.
+
+`ah` = 1<br>
+`ds:si` = pointer to null-terminated track.
+
 ### Stop sound
 Shuts up the pc speaker.
 
-`ah` = 1
+`ah` = 2
+
+## Int 0x25
+This is only used to launch a program from another one, so one doesn't need to pass control again to the kernel when switching programs.
+
+`si` = pointer to file name, must be 11 characters with the last 3 being the extension

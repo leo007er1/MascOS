@@ -24,7 +24,7 @@ KernelMain:
     mov sp, 0x7bff
 
     ; Save the disk number
-    mov byte [BootDisk], dl
+    mov byte [CurrentDisk], dl
 
     cld ; Forward direction for string operations
     sti ; Now you can annoy me
@@ -98,6 +98,8 @@ LoadProgram:
     inc ax
 
     .LoadIt:
+        mov dx, word KernelSeg
+        mov ds, dx
         mov dx, word ProgramSeg
         mov es, dx
         mov word [es:0], ax ; Save the file size
@@ -177,6 +179,21 @@ FreeProgram:
 
     .Exit:
         ret
+
+
+EndProgramAndRunAnother:
+    ; Let's pop off the values that the int instruction put to the stack
+    pop ax
+    pop bx
+    call FreeProgram
+
+    mov ax, word KernelSeg
+    mov es, ax
+
+    call LoadProgram
+    
+    jmp GetCommand.AddNewLine
+
 
 
 ; Gets some useful information about the system from BDA(Bios Data Area)

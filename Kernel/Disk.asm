@@ -5,9 +5,6 @@
 ; This file basically contains only the stuff needed for the kernel from Disk.asm in the bootloader.
 ; Some labels have been modified too, so it's not completely useless.
 
-; ! IMPORTANT
-; ! Since the offset to load files to is relative to the kernel, we need to change the KernelOffset variable according to how many sectors the kernel takes up.
-
 
 
 ; Stuff from BPB
@@ -18,7 +15,7 @@ Heads equ 2
 
 
 
-; Where int 0x21 brings us to
+; Where int 0x22 brings us to
 ; Input:
 ;   ah = function to execute
 DiskIntHandler:
@@ -41,8 +38,14 @@ DiskIntHandler:
 
     .NoFileName:
         cmp ah, byte 3
-        jne .Exit
+        jne .RenameFile
         call GetFileSize
+        jmp .Exit
+
+    .RenameFile:
+        cmp ah, byte 4
+        jne .Exit
+        call RenameFile
 
     .Exit:
         ; Tell the PIC we are done with interrupt
@@ -64,7 +67,7 @@ ReadDisk:
     ; Buffer to read to(ES:BX) is already set
     mov ah, 0x02 ; Read please
     ; Sectors to read are already set
-    mov dl, byte [BootDisk]
+    mov dl, byte [CurrentDisk]
 
     ; CHS addressing
     ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
@@ -102,7 +105,7 @@ WriteDisk:
     ; Es:bx is the data buffer
     mov ah, byte 3
     ; Al contains sectors to write
-    mov dl, byte [BootDisk]
+    mov dl, byte [CurrentDisk]
 
     ; CHS addressing
     ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
@@ -152,9 +155,7 @@ GetFirstEmptyEntry:
     .FoundIt:
         mov word [FirstEmptyEntry], di
 
-        pop ax
-        mov es, ax
-
+        pop es
         pop si
         pop ax
 
@@ -208,11 +209,7 @@ GetFirstFreeCluster:
             jmp .FindCluster
 
     .Exit:
-        cli
-        hlt
-
-        pop dx
-        mov es, dx
+        pop es
         pop dx
         pop cx
         pop bx
@@ -230,11 +227,12 @@ GetFirstFreeCluster:
 SearchFile:
     push si
 
+    push es
     mov ax, RootDirMemLocation
     mov es, ax
 
     xor di, di
-    mov ax, word [RootDirEntries] ; Counter
+    mov ax, word RootDirEntries ; Counter
     mov dx, si
 
     .NextEntry:
@@ -251,24 +249,20 @@ SearchFile:
 
         add di, word 32 ; Every entry is 32 bytes
 
-        test ax, ax
+        or ax, ax
         jnz .NextEntry
 
         .Error:
             ; Nope. Nope.
-            mov dx, KernelSeg
-            mov es, dx
-
             stc
+            pop es
             pop dx
             mov cx, di
 
             ret
 
     .Exit:
-        mov dx, KernelSeg
-        mov es, dx
-
+        pop es
         pop dx
         mov cx, di
         clc
@@ -292,7 +286,7 @@ GetFileName:
     mov cl, byte 11 ; Counter
 
     .OutputName:
-        test cl, cl
+        or cl, cl
         jz .End
 
         mov al, byte [es:bx]
@@ -304,14 +298,54 @@ GetFileName:
         jmp .OutputName
 
     .End:
-        pop dx
-        mov es, dx
-
+        pop es
         pop dx
         pop cx
 
         ret
 
+
+; Renames a file with the given string. Changes extension!
+; Input:
+;   ds:si = pointer to file to rename
+;   es:di = pointer to new file name
+; Output:
+;   carry flag = set for invalid file name, clear for success
+RenameFile:
+    push ax
+    push cx
+    push si
+    push di
+
+    xchg si, di
+    call StringLenght
+
+    cmp cl, byte 11
+    jne .InvalidFileName
+    xchg si, di
+    xor ch, ch ; It's better to clean ch
+
+    .loop:
+        mov al, byte [es:di]
+        mov byte [si], al
+
+        inc si
+        inc di
+        loop .loop
+
+        clc
+        jmp .Exit
+
+    .InvalidFileName:
+        xchg si, di
+        stc
+
+    .Exit:
+        pop di
+        pop si
+        pop cx
+        pop ax
+        ret
 
 
 ; Gets a files size and returns how big it is
@@ -422,9 +456,7 @@ LoadFile:
     add di, word 0x1a
     mov ax, word [es:di] ; Bytes 26-27 is the first cluster
 
-    pop dx
-    mov es, dx
-
+    pop es
     push es
     push ds
     mov dx, word KernelSeg
@@ -465,8 +497,7 @@ LoadFile:
         mov ax, word [es:bx]
 
         ; Would be smart to set ES back
-        pop bx
-        mov es, bx
+        pop es
 
         ; Checks if the current cluster is even or not
         ; Checks if the first bit is 1 or 0
@@ -494,11 +525,8 @@ LoadFile:
         .FileLoaded:
             mov word [FileOffset], 0
 
-            pop dx
-            mov ds, dx
-            pop dx
-            mov es, dx
-
+            pop ds
+            pop es
             pop dx
             pop cx
             pop bx
@@ -543,7 +571,7 @@ ResetDisk:
     push ax
 
     xor ah, ah
-    mov dl, byte [BootDisk]
+    mov dl, byte [CurrentDisk]
     int 0x13
 
     pop ax
@@ -561,7 +589,7 @@ DiskError:
 
 
 
-BootDisk: db 0
+CurrentDisk: db 0
 CurrentCluster: dw 0
 FileOffset: dw 0
 FirstEmptyEntry: dw 0

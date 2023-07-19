@@ -42,8 +42,6 @@ AccentColour: db 0
 
 
 EditProgram:
-    push cx
-
     ; Get colours
     mov ah, byte 8
     int 0x23
@@ -54,7 +52,9 @@ EditProgram:
     int 0x23
 
     ; Print file name
-    mov bx, cx ; Get that pointer back
+    mov bx, word 2
+    mov ax, word [bx]
+    mov bx, ax
     mov ah, byte 2
     lea si, FileName
     int 0x22
@@ -89,7 +89,8 @@ EditProgram:
     int 0x23
 
     ; Loads file contents into buffer
-    pop di
+    mov bx, word 2
+    mov di, word [bx]
     lea bx, TextBuffer
     mov ah, byte 1
     int 0x22
@@ -141,6 +142,10 @@ ModeSelector:
                 mov al, byte [AccentColour]
                 and al, 0xfc ; Red
                 int 0x23
+
+                xor ah, ah
+                mov bx, 600
+                int 0x24
 
                 mov ah, byte 3
                 mov al, byte 24

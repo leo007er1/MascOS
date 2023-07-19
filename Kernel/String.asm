@@ -5,7 +5,7 @@
 
 ; Gets the lenght of a string
 ; Input:
-;   si = string
+;   ds:si = string
 ; Output:
 ;   cx = lenght of string
 StringLenght:

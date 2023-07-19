@@ -267,12 +267,10 @@ SoundCmd:
     mov bx, word 500
     call PlaySound
 
-    mov cx, 0x2
-    mov dx, 0x4000
+    mov cx, 0x1
+    mov dx, 0x3000
     mov ah, 0x86
     int 0x15
-
-    call StopSound
 
     jmp GetCommand.AddNewLine
 
@@ -366,6 +364,12 @@ TrashVimCmd:
     lea si, AttributesBuffer
     call SearchFile
     jc .BadArgument
+
+    ; Saves the pointer to file entry
+    mov bx, word ProgramSeg
+    mov es, bx
+    mov bx, 2
+    mov word [es:bx], cx
 
     lea si, TrashVimProgramFileName
     call LoadProgram
