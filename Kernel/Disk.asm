@@ -6,20 +6,11 @@
 ; Some labels have been modified too, so it's not completely useless.
 
 
-
-; Stuff from BPB
-RootDirEntries equ 224
-SectorsPerTrack equ 18
-SectorsPerCluster equ 1
-Heads equ 2
-
-
-
 ; Where int 0x22 brings us to
 ; Input:
 ;   ah = function to execute
 DiskIntHandler:
-    test ah, ah
+    or ah, ah
     jnz .NoSearchFile
     call SearchFile
     jmp .Exit
@@ -53,81 +44,6 @@ DiskIntHandler:
         out 0x20, al
 
         iret
-
-
-
-
-; Reads the disk into the specified buffer in memory
-; Input:
-;   es:bx = buffer offset
-;   al = sectors to read
-ReadDisk:
-    call ResetDisk
-
-    ; Buffer to read to(ES:BX) is already set
-    mov ah, 0x02 ; Read please
-    ; Sectors to read are already set
-    mov dl, byte [CurrentDisk]
-
-    ; CHS addressing
-    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
-    mov ch, byte [ChsTrack] ; C (cylinder)
-    mov dh, byte [ChsHead] ; H (head)
-    mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
-
-    stc
-    int 0x13
-    jc .Check ; Carry flag set
-    jmp .Exit
-    
-    ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
-    .Check:
-        add byte [ReadAttempts], byte 1 ; If I use inc I get an error
-        cmp byte [ReadAttempts], byte 3
-        je DiskError
-
-        jmp ReadDisk
-
-    .Exit:
-        mov byte [ReadAttempts], byte 0
-        ret
-
-
-
-; Writes the given buffer to the disk
-; Code is basically the same as ReadDisk
-; Input:
-;   al = number of sectors to write
-;   es:bx = data buffer
-WriteDisk:
-    call ResetDisk
-
-    ; Es:bx is the data buffer
-    mov ah, byte 3
-    ; Al contains sectors to write
-    mov dl, byte [CurrentDisk]
-
-    ; CHS addressing
-    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
-    mov ch, byte [ChsTrack] ; C (cylinder)
-    mov dh, byte [ChsHead] ; H (head)
-    mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
-
-    stc
-    int 0x13
-    jnc .Exit
-
-    ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
-    .Check:
-        add byte [ReadAttempts], byte 1 ; If I use inc I get an error
-        cmp byte [ReadAttempts], byte 3
-        je DiskError
-
-        jmp WriteDisk
-
-    .Exit:
-        mov byte [ReadAttempts], byte 0
-        ret
 
 
 
@@ -183,11 +99,9 @@ GetFirstFreeCluster:
         mov bx, ax
         mov cl, byte 1
         shr bx, cl
-        add ax, bx
+        add bx, ax
 
-        ; Get the 12 bits
-        mov bx, ax
-        mov ax, word [es:bx]
+        mov ax, word [es:bx] ; Get the 12 bits
 
         ; Checks if the current cluster is even or not
         test dx, 1
@@ -222,49 +136,55 @@ GetFirstFreeCluster:
 ;   si = pointer to file name
 ; Output:
 ;   carry flag = clear for success, set for error
-;   dx = the given value in si
-;   cx = pointer to entry in root dir
+;   si = pointer to entry in root dir
 SearchFile:
-    push si
+    push ax
+    push cx
+    push dx
+    push di
 
     push es
-    mov ax, RootDirMemLocation
+    mov ax, word RootDirMemLocation
     mov es, ax
 
     xor di, di
-    mov ax, word RootDirEntries ; Counter
+    mov cx, word RootDirEntries ; Counter
     mov dx, si
 
     .NextEntry:
         push di
-        dec ax
+        push cx
 
         mov si, dx ; File name
         mov cx, 11 ; How many bytes to compare
-
         repe cmpsb
 
+        pop cx
         pop di ; Get the original value back(current entry start)
         je .Exit
 
         add di, word 32 ; Every entry is 32 bytes
-
-        or ax, ax
-        jnz .NextEntry
+        loop .NextEntry
 
         .Error:
             ; Nope. Nope.
-            stc
+            mov si, di
             pop es
+            pop di
             pop dx
-            mov cx, di
+            pop cx
+            pop ax
+            stc
 
             ret
 
     .Exit:
+        mov si, di
         pop es
+        pop di
         pop dx
-        mov cx, di
+        pop cx
+        pop ax
         clc
 
         ret
@@ -355,11 +275,11 @@ RenameFile:
 ;   ax = file size in KB
 ;   dx = remainder(in bytes)
 GetFileSize:
+    push bx
     push cx
-    push dx
     push es
 
-    mov ax, RootDirMemLocation
+    mov ax, word RootDirMemLocation
     mov es, ax
     add bx, word 0x1c ; File size
 
@@ -370,8 +290,8 @@ GetFileSize:
     div cx
 
     pop es
-    pop dx
     pop cx
+    pop bx
     ret
 
 
@@ -442,7 +362,7 @@ CreateFile:
 
 ; Loads a file to the specified buffer
 ; Input:
-;   di = pointer to entry in root dir
+;   si = pointer to entry in root dir
 ;   es:bx = offset to read to
 LoadFile:
     push ax
@@ -453,8 +373,8 @@ LoadFile:
 
     mov ax, RootDirMemLocation
     mov es, ax
-    add di, word 0x1a
-    mov ax, word [es:di] ; Bytes 26-27 is the first cluster
+    add si, word 0x1a
+    mov ax, word [es:si] ; Bytes 26-27 is the first cluster
 
     pop es
     push es
@@ -486,21 +406,16 @@ LoadFile:
         mov bx, ax
         mov cl, byte 1
         shr bx, cl ; Shift a bit to the right, aka divide by 2
-        add ax, bx
+        add bx, ax
 
         ; Get the 12 bits
         push es
-        mov bx, FATMemLocation
-        mov es, bx
-
-        mov bx, ax
+        mov cx, word FATMemLocation
+        mov es, cx
         mov ax, word [es:bx]
-
-        ; Would be smart to set ES back
-        pop es
+        pop es ; Would be smart to set ES back
 
         ; Checks if the current cluster is even or not
-        ; Checks if the first bit is 1 or 0
         test dx, 1
         jz .EvenCluster
 
@@ -513,11 +428,10 @@ LoadFile:
             and ax, 0xfff
 
         .Continue:
-            mov word [CurrentCluster], ax ; Save the new cluster
-
             cmp ax, word 0xff8 ; 0xff8 - 0xfff represent the last cluster
             jae .FileLoaded
 
+            mov word [CurrentCluster], ax ; Save the new cluster
             add word [FileOffset], 512 ; Next sector
             jmp .LoadCluster
 
@@ -535,6 +449,56 @@ LoadFile:
 
 
 
+
+
+;* --//  Other functions  \\--
+
+
+; Reads the disk into the specified buffer in memory
+; Input:
+;   es:bx = buffer offset
+;   al = sectors to read
+ReadDisk:
+    mov ah, byte 2 ; Read please
+    jmp DiskSectorRoutine
+
+; Writes the given buffer to the disk
+; Code is basically the same as ReadDisk
+; Input:
+;   al = number of sectors to write
+;   es:bx = data buffer
+WriteDisk:
+    mov ah, byte 3
+
+DiskSectorRoutine:
+    call ResetDisk
+
+    ; Buffer to read to(ES:BX) is already set
+    ; Sectors to read are already set
+    mov dl, byte [CurrentDisk]
+
+    ; CHS addressing
+    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
+    mov ch, byte [ChsTrack] ; C (cylinder)
+    mov dh, byte [ChsHead] ; H (head)
+    mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
+
+    stc
+    int 0x13
+    jc .Check ; Carry flag set
+
+    mov byte [ReadAttempts], byte 0
+    ret
+    
+    ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
+    .Check:
+        add byte [ReadAttempts], byte 1 ; If I use inc I get an error
+        cmp byte [ReadAttempts], byte 3
+        jge DiskError
+
+        jmp DiskSectorRoutine
+
+
 ; Converts LBA to CHS
 ; Input:
 ;   ax = lba address to convert
@@ -547,7 +511,7 @@ LbaToChs:
     div cx
 
     xor dx, dx
-    mov cx, word Heads
+    mov cx, word DiskHeads
     div cx
 
     mov byte [ChsTrack], al
@@ -555,6 +519,7 @@ LbaToChs:
 
     ; Sectors
     pop ax
+    xor dx, dx
     mov cx, word SectorsPerTrack
     div cx
     inc dl ; Sectors start from 1
@@ -581,8 +546,8 @@ ResetDisk:
 DiskError:
     mov al, 1
     call VgaNewLine
-    mov si, DiskErrorMessage
-    mov ah, 0xc ; Red
+    lea si, DiskErrorMessage
+    mov al, 0xc ; Red
     call VgaPrintString
 
     ret
@@ -597,9 +562,14 @@ FirstEmptyCluster: dw 0
 FileNameBuffer: times 11 db 0
 FileNameBufferSize: db 0
 
+; WriteFile variables
+SectorCount: dw 0
+SectorsUsedByFile: dw 0
+ClustersToWrite: times 128 dw 0
+
 ChsSector: db 0
 ChsTrack: db 0
 ChsHead: db 0
 
 ReadAttempts: db 0
-DiskErrorMessage: db "You idiot, you got a disk read/write error", 0
+DiskErrorMessage: db "Disk read/write error, idiot", 0

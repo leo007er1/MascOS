@@ -277,6 +277,7 @@ VgaPrintString:
     push bx
     push cx
     push dx
+    push si
 
     ; Setup process
     push es
@@ -352,6 +353,7 @@ VgaPrintString:
         mov byte [es:CurrentColumn], dl
 
         pop es
+        pop si
         pop dx
         pop cx
         pop bx

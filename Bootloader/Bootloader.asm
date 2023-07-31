@@ -18,24 +18,24 @@ nop
 
 
 OEMidentifier: db "MASCOS  "
-BytesPerSector: dw 512
-SectorsPerCluster: db 1
-ReservedSectors: dw 1 ; Sectors for boot record
-NumberOfFATs: db 2 ; Number of copies of FAT. Usually 2
-RootDirEntries: dw 224 ; Number of entries in the root directory
-LogicalSectors: dw 2880 ; Sectors in logical volume
-MediaDescriptor: db 0xF0 ; Media descriptor byte, see IMPORTANT STUFF at the beggining of this file
-SectorsPerFAT: dw 9
-SectorsPerTrack: dw 18
-Heads: dw 2
-HiddenSectors: dd 0
-LargeSectors: dd 0 ; Sectors per LBA
+dw BytesPerSector
+db SectorsPerCluster
+dw ReservedSectors ; Sectors for boot record
+db NumberOfFATs ; Number of copies of FAT. Usually 2
+dw RootDirEntries ; Number of entries in the root directory
+dw LogicalSectors ; Sectors in logical volume
+db MediaDescriptor ; Media descriptor byte, see IMPORTANT STUFF at the beggining of this file
+dw SectorsPerFAT
+dw SectorsPerTrack
+dw DiskHeads
+dd HiddenSectors
+dd LargeSectors ; Sectors per LBA
 
 ; Extended boot record
-DriveNumber: db 0 ; Should be equal to the value returned in dl
-ReservedByte: db 0 ; Always 0
-Signature: db 0x29 ; Or 0x28 or 0x29
-VolumeId: dd 0 ; Ignore I you aren't willing to put one
+db DriveNumber ; Should be equal to the value returned in dl
+db ReservedByte ; Always 0
+db Signature ; Or 0x28 or 0x29
+dd VolumeId ; Ignore I you aren't willing to put one
 VolumeLabel: db "MASCOS     " ; Anything but must be 11 bytes
 FileSystem: db "FAT12   " ; Don't touch pls
 
@@ -53,15 +53,13 @@ Start:
 
 
 Main:
-    ; Saves the number of the drive where we currently are
-    mov byte [BootDisk], dl
-
     ; Segments setup
     xor ax, ax
     mov ds, ax
     mov es, ax
-    ; mov fs, ax
-    ; mov gs, ax
+    
+    ; Saves the number of the drive where we currently are
+    mov byte [BootDisk], dl
 
     ; Stack setup
     mov ss, ax

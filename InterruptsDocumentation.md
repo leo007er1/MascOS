@@ -22,8 +22,7 @@ Finds a file in the root directory of FAT12, returning the pointer of the entry.
 
 **Output**<br>
 `carry flag` = clear for success, set for error<br>
-`dx` = the given value in `si`<br>
-`cx` = pointer to entry in root dir
+`si` = pointer to entry in root dir
 
 ### Load a file
 Loads a file at the specified offset in memory. The offset is specified by `es:bx`.

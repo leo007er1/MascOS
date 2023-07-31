@@ -79,38 +79,32 @@ LsCmd:
     mov al, 1
     call VgaNewLine
 
-    mov ax, RootDirMemLocation
+    push es
+    mov ax, word RootDirMemLocation
     mov es, ax
     xor di, di
+    mov ch, byte [NormalColour]
 
     .CheckAndPrint:
         cmp byte [es:di], byte 0
-        je .Finished
+        jz .Finished
 
         ; Copies the file name to LsDummyFileName
         mov bx, di
         lea si, LsDummyFileName
         call GetFileName
 
-        call .PrintName
+        lea si, LsDummyFileName
+        mov al, ch
+        call VgaPrintString
         add di, word 32 ; Next entry
 
         jmp .CheckAndPrint
 
-
-    .PrintName:
-        lea si, LsDummyFileName
-        mov al, byte [NormalColour]
-        call VgaPrintString
-
-        ret
-
-
     .Finished:
-        mov ax, KernelSeg
-        mov es, ax
-
+        pop es
         jmp GetCommand.AddNewDoubleLine
+
 
 
 FilesCmd:
@@ -369,7 +363,7 @@ TrashVimCmd:
     mov bx, word ProgramSeg
     mov es, bx
     mov bx, 2
-    mov word [es:bx], cx
+    mov word [es:bx], si
 
     lea si, TrashVimProgramFileName
     call LoadProgram
@@ -445,10 +439,8 @@ FetchLogo5: db "  (/`-'\)   ", 0
 ColourNoArg: db NewLine, "Insert background and foreground colors in hexadecimal, or type reset to use def", NewLine, "ault colours. ", "Example: 0x818a", 0
 ColourResetString: db "reset", 0
 
-; Ls command data
-LsNoFiles: db "File not found", 0
 LsDummyFileName: times 11 db 0
-LsFileNameSpace: db "   ", 0
+db "   ", 0
 
 FilesProgramFileName: db "FILEMANACOM", 0
 

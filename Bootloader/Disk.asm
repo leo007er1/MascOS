@@ -15,8 +15,8 @@
 ;
 ; *How to convert LBA to CHS:
 ; sector = (LBA % SectorsPerTrack) + 1
-; head = (LBA / SectorsPerTrack) % Heads
-; track = LBA / (SectorsPerTrack * Heads)
+; head = (LBA / SectorsPerTrack) % DiskHeads
+; track = LBA / (SectorsPerTrack * DiskHeads)
 ;
 ; I saw online that entries with a file attribute of 0xf are "fake" ones to use for long file names
 ;
@@ -35,13 +35,12 @@ ReadDisk:
     push dx
 
     ; Buffer to read to(ES:BX) is already set
-
     mov ah, 0x02 ; Read please
     ; Sectors to read are already set
     mov dl, byte [BootDisk]
 
     ; CHS addressing
-    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
+    ; NOTE: In floppyes there are 18 sectors per track, with 2 DiskHeads and a total sectors count of 2880
     mov ch, byte [ChsTrack] ; C (cylinder)
     mov dh, byte [ChsHead] ; H (head)
     mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
@@ -49,7 +48,10 @@ ReadDisk:
     stc
     int 0x13
     jc .Check ; Carry flag set
-    jmp .Exit
+
+    mov [ReadAttempts], byte 0
+    pop dx
+    ret
     
     ; Retryes the operation 3 times, if failed all 3 times outputs error, yay
     .Check:
@@ -59,36 +61,28 @@ ReadDisk:
 
         jmp ReadDisk
 
-    .Exit:
-        mov [ReadAttempts], byte 0
-        pop dx
-
-        ret
-
 
 
 ; Loads the first FAT
 LoadFAT:
     ; FATs are just after the reserved sectors, so...
-    mov ax, word [ReservedSectors]
+    mov ax, word ReservedSectors
     call LbaToChs
 
     mov bx, FATMemLocationOffset
-    mov al, [SectorsPerFAT] ; Sectors to read
+    mov al, byte SectorsPerFAT ; Sectors to read
     call ReadDisk
 
 
 
 ; Loads the root directory
 LoadRootDir:
-    call GetRootDirInfo
-
     ; Get CHS info
-    mov ax, word [RootDirStartPoint]
+    mov ax, word RootDirStartPoint
     call LbaToChs
 
     mov bx, RootDirMemLocationOffset
-    mov al, [RootDirSize] ; Sectors to read
+    mov al, byte RootDirSize ; Sectors to read
     call ReadDisk
 
 
@@ -96,24 +90,23 @@ LoadRootDir:
 ; Searches for an entry in the root dir with the kernel file name
 SearchKernel:
     mov di, RootDirMemLocationOffset
-    mov ax, word [RootDirEntries] ; Counter
+    mov cx, word RootDirEntries ; Counter
 
     .NextEntry:
         push di
-        dec ax
+        push cx
 
-        mov si, KernelFileName ; First string
+        lea si, KernelFileName ; First string
         mov cx, 11 ; How many bytes to compare
 
         repe cmpsb
 
+        pop cx
         pop di ; Get the original value back(current entry start)
         je LoadKernel
 
         add di, 32 ; Every entry is 32 bytes
-
-        or ax, ax
-        jnz .NextEntry
+        loop .NextEntry
 
         ; Nope. Nope.
         jmp ReadDiskError
@@ -125,7 +118,7 @@ LoadKernel:
     mov word [CurrentCluster], ax ; Save it
 
     ; Where we load the kernel
-    mov ax, 0x7e0
+    mov ax, word KernelSeg
     mov es, ax
     xor bx, bx
 
@@ -138,7 +131,7 @@ LoadKernel:
         call LbaToChs
 
         mov bx, word [KernelAddress]
-        mov al, byte [SectorsPerCluster]
+        mov al, byte SectorsPerCluster
         call ReadDisk
 
         ; Calculates next cluster
@@ -150,10 +143,10 @@ LoadKernel:
         mov bx, ax
         mov cl, byte 1
         shr bx, cl ; Shift a bit to the right, aka divide by 2
-        add ax, bx
+        add bx, ax
 
         ; Get the 12 bits
-        mov bx, FATMemLocationOffset
+        mov ax, FATMemLocationOffset
         add bx, ax
         mov ax, word [bx]
 
@@ -171,11 +164,10 @@ LoadKernel:
             and ax, 0xfff
 
         .Continue:
-            mov word [CurrentCluster], ax ; Save the new cluster
-
             cmp ax, word 0xff8 ; 0xff8 - 0xfff represent the last cluster
             jae .KernelLoaded
 
+            mov word [CurrentCluster], ax ; Save the new cluster
             add word [KernelAddress], 512 ; Next sector
             jmp .LoadCluster
 
@@ -190,7 +182,11 @@ LoadKernel:
             mov dl, byte [BootDisk]
 
             ; Jump to kernel
-            jmp 0x7e0:0x0
+            mov ax, word KernelSeg
+            xor bx, bx
+            push ax
+            push bx
+            retf
 
 
 
@@ -202,7 +198,7 @@ ResetDisk:
     push ax
 
     xor ah, ah
-    mov dl, [BootDisk]
+    mov dl, byte [BootDisk]
     int 0x13
 
     pop ax
@@ -219,7 +215,8 @@ LbaToChs:
 
     ; Sector
     xor dx, dx
-    div word [SectorsPerTrack]
+    mov bx, word SectorsPerTrack
+    div bx
     inc dl ; Sectors start from 1
     mov byte [ChsSector], dl
 
@@ -227,9 +224,12 @@ LbaToChs:
 
     ; Head and track
     xor dx, dx
-    div word [SectorsPerTrack]
+    mov bx, word SectorsPerTrack
+    div bx
+    
     xor dx, dx
-    div word [Heads]
+    mov bx, word DiskHeads
+    div bx
     mov byte [ChsTrack], al
     mov byte [ChsHead], dl
 
@@ -246,40 +246,15 @@ ClusterToLba:
     xor dx, dx
 
     sub ax, 2
-    mov cl, byte [SectorsPerCluster]
+    mov cl, byte SectorsPerCluster
     mul cx
 
     ret
 
 
-
-
-; Gets root dir info and stores it into variables
-GetRootDirInfo:
-    xor ax, ax
-    xor dx, dx
-
-    ; Gets the start point of the root dir
-    mov al, byte [NumberOfFATs]
-    mul word [SectorsPerFAT]
-    add ax, word [ReservedSectors]
-
-    mov word [RootDirStartPoint], ax
-
-    ; Gets the size in sectors of the root dir
-    mov ax, 32 ; Every entry is 32 bytes
-    mul word [RootDirEntries]
-    div word [BytesPerSector]
-
-    mov word [RootDirSize], ax
-
-    ret
-
-
-
 ReadDiskError:
     pop dx
-    mov si, ReadDiskErrorMessage
+    lea si, ReadDiskErrorMessage
     call PrintString
 
     ; Wait for key press
@@ -295,8 +270,6 @@ ReadDiskError:
 
 
 BootDisk: db 0
-RootDirSize: dw 0
-RootDirStartPoint: dw 0
 KernelFileName: db "KERNEL  BIN"
 CurrentCluster: dw 0
 KernelAddress: dw 0

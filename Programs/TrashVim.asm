@@ -90,7 +90,7 @@ EditProgram:
 
     ; Loads file contents into buffer
     mov bx, word 2
-    mov di, word [bx]
+    mov si, word [bx]
     lea bx, TextBuffer
     mov ah, byte 1
     int 0x22

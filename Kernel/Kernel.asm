@@ -86,7 +86,7 @@ LoadProgram:
     jc .NoBadValues
 
     ; We need to know how CHUNCKY it is
-    mov bx, cx ; cx is contains the pointer to entry in root directory
+    mov bx, si ; si is contains the pointer to entry in root directory
     call GetFileSize
 
     shl ax, 1 ; ax * 2
@@ -104,7 +104,7 @@ LoadProgram:
         mov es, dx
         mov word [es:0], ax ; Save the file size
 
-        mov di, cx ; Get back the pointer to the entry
+        ; Pointer to entry already set
         mov bx, word ProgramOffset ; Offset
         call LoadFile
 
@@ -274,6 +274,7 @@ PrintLogo:
 %include "./Kernel/Screen/VGA.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
+%include "./Kernel/FAT12.asm"
 %include "./Kernel/Timer/PIT.asm"
 %include "./Kernel/Timer/CMOS.asm"
 %include "./Kernel/IO/Sound.asm"
