@@ -222,22 +222,23 @@ GetBdaInfo:
 
 
 
-; Macro to replace most of the PrintLogo bad code
+; Prints one line of the logo
 ; Input:
-;   1 = string to print
-%macro PrintLogoLine 1
+;   si = string to print
+PrintLogoLine:
+    push si
     lea si, MascLogoSpace
     mov al, byte [NormalColour]
     call VgaPrintString
 
-    mov si, %1
+    pop si
     mov al, LogoColor
     call VgaPrintString
 
     mov al, byte 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
-%endmacro
+    ret
 
 
 ; *TRASH CODE WARNING! CONTINUE AT YOUR OWN RISK
@@ -246,14 +247,18 @@ PrintLogo:
 
     ; Padding to the top
     mov al, byte 6
-    call VgaNewLine
+    call VgaPrintNewLine
 
     .Logo:
         ; Now it's way cleaner
-        PrintLogoLine MascLogo
-        PrintLogoLine MascLogo1
-        PrintLogoLine MascLogo2
-        PrintLogoLine MascLogo3
+        lea si, MascLogo
+        call PrintLogoLine
+        lea si, MascLogo1
+        call PrintLogoLine
+        lea si, MascLogo2
+        call PrintLogoLine
+        lea si, MascLogo3
+        call PrintLogoLine
 
         lea si, WelcomeMessage
         mov al, byte [NormalColour]

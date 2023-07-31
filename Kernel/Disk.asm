@@ -545,7 +545,7 @@ ResetDisk:
 
 DiskError:
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
     lea si, DiskErrorMessage
     mov al, 0xc ; Red
     call VgaPrintString

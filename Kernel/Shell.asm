@@ -128,12 +128,12 @@ GetCommand:
 
         .AddNewLine:
             mov al, 1
-            call VgaNewLine
+            call VgaPrintNewLine
             jmp .SkipNewLine
 
         .AddNewDoubleLine:
             mov al, 2
-            call VgaNewLine
+            call VgaPrintNewLine
             
         .SkipNewLine:
             call ClearAttributesBuffer
@@ -367,7 +367,7 @@ CommandNotFound:
     push si
 
     mov al, byte 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     lea si, CommandNotFoundMessage
     mov al, byte [NormalColour]

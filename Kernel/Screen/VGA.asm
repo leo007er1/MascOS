@@ -24,70 +24,6 @@ CursorPos: dw 0
 
 
 
-
-; Input:
-;   %1 = number of new lines
-%macro VgaPrintNewLine 1
-    push ax
-    push bx
-    push dx
-
-    ; CursorPos += %1 * 160 - (CursorPos % VgaColumns)
-    add byte [CurrentRow], %1
-    mov byte [CurrentColumn], %1 ; We temporanely store this value here, since I can't directly move it to a register
-
-    ; Checks if we need to scroll
-    cmp byte [CurrentRow], 25
-    jl %%AddNewLine
-
-    mov al, %1
-    call VgaScroll
-
-    %%AddNewLine:
-        xor dx, dx
-        mov ax, word [CursorPos]
-        mov bx, VgaColumns
-        div bx
-
-        sub word [CursorPos], dx
-
-        mov al, byte [CurrentColumn]
-        mov bx, word 160
-        mul bx
-
-        add word [CursorPos], ax
-        mov byte [CurrentColumn], 0
-
-
-    pop dx
-    pop bx
-    pop ax
-
-%endmacro
-
-
-%macro VgaCarriageReturn 0
-    ; CursorPos -= CurrentColumn * 2
-    push ax
-    push bx
-    push dx
-
-    ; Yes, I'm too lazy to multiply CurrentColumn by 2
-    mov bl, byte [cs:CurrentColumn]
-    xor bh, bh
-    mov ax, word [cs:CursorPos]
-    sub ax, bx
-    sub ax, bx
-
-    mov word [cs:CursorPos], ax
-    mov byte [cs:CurrentColumn], 0
-
-    pop dx
-    pop bx
-    pop ax
-%endmacro
-
-
 VgaInit:
     ; *NOTE: this won't do anything on new hardware that emulates VGA, only on real VGA hardware
     ; Disable blink bit so we can use all 16 colours instead of 8
@@ -137,7 +73,7 @@ VgaIntHandler:
     .NoPrintChar:
         cmp ah, byte 2
         jne .NoNewLine
-        call VgaNewLine
+        call VgaPrintNewLine
         jmp .Exit
 
     .NoNewLine:
@@ -232,7 +168,7 @@ VgaPrintChar:
 
 ; Prints a string to the screen by writing manually to the vga buffer
 ; Input:
-;   si = pointer to string
+;   ds:si = pointer to string
 ;   al = attribute(foreground and background colour)
 VgaPrintString:
     push ax
@@ -284,7 +220,8 @@ VgaPrintString:
         jmp .PrintLoop
 
         .NewLine:
-            VgaPrintNewLine 1
+            mov al, 1
+            call VgaPrintNewLine
             mov bx, word [cs:CursorPos] ; Get new CursorPos
 
             xor dl, dl ; CurrentColumn = 0
@@ -292,7 +229,7 @@ VgaPrintString:
 
 
         .CarriageReturn:
-            VgaCarriageReturn
+            call VgaCarriageReturn
             xor dl, dl ; CurrentColumn = 0
 
             jmp .PrintLoop
@@ -316,49 +253,86 @@ VgaPrintString:
 
 
 
-; "Prints" a new line
-; Input:
-;   al = number of new lines
-VgaNewLine:
+VgaCarriageReturn:
+    push ax
     push bx
-    push cx
-    push ds
 
-    mov bx, word KernelSeg
-    mov ds, bx
+    ; CursorPos -= CurrentColumn * 2
+    ; Yes, I'm too lazy to multiply CurrentColumn by 2
+    xor bh, bh
+    mov bl, byte [cs:CurrentColumn]
+    mov ax, word [cs:CursorPos]
+    sub ax, bx
+    sub ax, bx
 
-    VgaCarriageReturn
-    VgaPrintNewLine al
-    call VgaSetCursor
+    mov word [cs:CursorPos], ax
+    mov byte [cs:CurrentColumn], 0
 
-    pop ds
-    pop cx
     pop bx
-
+    pop ax
     ret
+
+
+
+; Prints a new line:
+;   al = number of new lines
+VgaPrintNewLine:
+    push ax
+    push bx
+    push dx
+    call VgaCarriageReturn
+
+    ; CursorPos += al * 160 - (CursorPos % VgaColumns)
+    add byte [cs:CurrentRow], al
+
+    ; Checks if we need to scroll
+    cmp byte [cs:CurrentRow], 25
+    jl .AddNewLine
+
+    call VgaScroll
+
+    .AddNewLine:
+        push ax
+        xor dx, dx
+        mov ax, word [cs:CursorPos]
+        mov bx, VgaColumns
+        div bx
+
+        sub word [cs:CursorPos], dx
+
+        xor dx, dx
+        pop ax
+        xor ah, ah
+        mov bx, word 160
+        mul bx
+
+        add word [cs:CursorPos], ax
+        mov byte [cs:CurrentColumn], 0
+
+        pop dx
+        pop bx
+        pop ax
+        call VgaSetCursor
+
+        ret
+
 
 
 ; Goes to a specified line
 ; Input:
 ;   al = line
 VgaGotoLine:
-    push ds
+    call VgaCarriageReturn
 
-    mov bx, word KernelSeg
-    mov ds, bx
-
-    VgaCarriageReturn
-
-    mov byte [CurrentRow], al
+    mov byte [cs:CurrentRow], al
     xor ah, ah
     xor dx, dx
-    mov cx, 160
+    mov cx, VgaColumns * 2
     mul cx
 
-    mov word [CursorPos], ax
+    mov word [cs:CursorPos], ax
     call VgaSetCursor
 
-    pop ds
     ret
 
 
@@ -377,11 +351,9 @@ VgaGotoPos:
     ; (bh * VgaColumns + bl) * 2
     xor ax, ax
     xchg al, bh
-    mov dx, VgaColumns
+    mov dx, VgaColumns * 2
     mul dx
     add ax, bx
-    mov cl, 1
-    shl ax, cl
 
     mov word [cs:CursorPos], ax
     call VgaSetCursor
@@ -483,6 +455,7 @@ VgaScroll:
 
     ;     jmp .Loop
 
+    push ax
     push bx
     push cx
     push dx
@@ -520,6 +493,7 @@ VgaScroll:
         pop dx
         pop cx
         pop bx
+        pop ax
 
         ret
 
@@ -530,15 +504,12 @@ VgaClearScreen:
     push bx
     push cx
     push es
-    push ds
 
     mov bx, VgaBuffer
     mov es, bx
-    mov bx, word KernelSeg
-    mov ds, bx
 
     xor al, al
-    mov ah, byte [NormalColour]
+    mov ah, byte [cs:NormalColour]
     xor bx, bx
 
     .ClearBuffer:
@@ -552,11 +523,10 @@ VgaClearScreen:
 
     .Exit:
         ; Al is 0 so...
-        mov word [CursorPos], 0
-        mov byte [CurrentColumn], al
-        mov byte [CurrentRow], al
+        mov word [cs:CursorPos], 0
+        mov byte [cs:CurrentColumn], al
+        mov byte [cs:CurrentRow], al
 
-        pop ds
         pop es
         pop cx
         pop bx
@@ -568,14 +538,10 @@ VgaClearScreen:
 ; Input:
 ;   al = line
 VgaClearLine:
-    push ds
-    mov bx, word KernelSeg
-    mov ds, bx
-
     ; Can't do something like: push word [CursorPos]
-    mov bx, word [CursorPos]
+    mov bx, word [cs:CursorPos]
     push bx
-    mov bl, byte [CurrentColumn]
+    mov bl, byte [cs:CurrentColumn]
     xor bh, bh
     push bx
     push es
@@ -588,7 +554,7 @@ VgaClearLine:
     push ax
     mov cx, VgaColumns ; Counter
     xor al, al
-    mov ah, byte [NormalColour]
+    mov ah, byte [cs:NormalColour]
 
     mov bx, VgaBuffer
     mov es, bx
@@ -601,14 +567,13 @@ VgaClearLine:
         loop .Loop
 
     .Exit:
-        mov word [CursorPos], bx
+        mov word [cs:CursorPos], bx
         pop es
         pop bx
-        mov byte [CurrentColumn], bl
+        mov byte [cs:CurrentColumn], bl
         pop bx
-        mov word [CursorPos], bx
+        mov word [cs:CursorPos], bx
 
-        pop ds
         ret
 
 
@@ -622,14 +587,11 @@ VgaPaintScreen:
     push cx
     push dx
     push es
-    push ds
 
     mov dl, bl
 
     mov bx, VgaBuffer
     mov es, bx
-    mov bx, word KernelSeg
-    mov ds, bx
 
     mov bx, word 1 ; First attribute byte
     mov cx, 2000
@@ -642,8 +604,8 @@ VgaPaintScreen:
     jz .Exit
 
     ; We need to set the new colours
-    mov byte [NormalColour], al
-    mov byte [AccentColour], dl
+    mov byte [cs:NormalColour], al
+    mov byte [cs:AccentColour], dl
 
     .PaintScreen:
         or cx, cx
@@ -657,7 +619,6 @@ VgaPaintScreen:
 
 
     .Exit:
-        pop ds
         pop es
         pop dx
         pop cx

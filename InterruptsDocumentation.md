@@ -66,7 +66,7 @@ Screen output throught VGA driver.
 Prints a string at cursor position. Automatically scrolls if the text goes out of the screen.
 
 `ah` = 0<br>
-`si` = pointer to string<br>
+`ds:si` = pointer to string<br>
 `al` = attribute(foreground and background colour)
 
 ### Print character

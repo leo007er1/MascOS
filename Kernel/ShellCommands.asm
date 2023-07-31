@@ -31,7 +31,7 @@
     call VgaPrintString
 
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
 %endmacro
 
@@ -57,7 +57,7 @@ InitShellCommands:
 
 HelpCmd:
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     lea si, HelpText
     mov al, byte [NormalColour]
@@ -77,7 +77,7 @@ ClearCmd:
 
 LsCmd:
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     push es
     mov ax, word RootDirMemLocation
@@ -192,7 +192,7 @@ StandbyCmd:
 ; Why not, I mean
 HimomCmd:
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     lea si, HimomText
     mov al, byte [NormalColour]
@@ -205,7 +205,7 @@ HimomCmd:
 ; Prints system time and date
 TimeCmd:
     mov al, byte 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     call CmosGetSystemTime
 
@@ -307,7 +307,7 @@ ColourCmd:
 ; *NOTE: takes up a bunch of space, maybe too much
 FetchCmd:
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     ; Ok now it's a little better
 
@@ -340,7 +340,7 @@ FetchCmd:
     call VgaPrintString
 
     mov al, 1
-    call VgaNewLine
+    call VgaPrintNewLine
 
     lea si, FetchLogo5
     mov al, byte [NormalColour]
@@ -371,7 +371,7 @@ TrashVimCmd:
 
     .BadArgument:
         mov al, byte 1
-        call VgaNewLine
+        call VgaPrintNewLine
 
         lea si, TrashVimProgramBadArgument
         mov al, byte [AccentColour]
@@ -396,7 +396,7 @@ RunCmd:
 
     .BadArgument:
         mov al, byte 1
-        call VgaNewLine
+        call VgaPrintNewLine
 
         lea si, TrashVimProgramBadArgument
         mov al, byte [AccentColour]

@@ -203,7 +203,7 @@ TextEdit:
 
     .NormalCharacter:
         mov ah, byte 1
-        mov cl, byte [NormalColour]
+        mov bl, byte [NormalColour]
         int 0x23
 
         jmp TextEdit
