@@ -144,7 +144,7 @@ ModeSelector:
                 int 0x23
 
                 xor ah, ah
-                mov bx, 600
+                mov bx, 3000
                 int 0x24
 
                 mov ah, byte 3

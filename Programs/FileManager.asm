@@ -122,6 +122,7 @@ Start:
 
 
         .CheckFile:
+        jmp .UnknownFile
             lea di, TextFileExtension
             ; cl already set
             call CheckFileExtension
@@ -153,8 +154,10 @@ Start:
 
             .UnknownFile:
                 push bx
+                mov ah, 9
                 mov bx, word 0x1808
                 int 0x23
+                
                 xor ah, ah
                 mov al, byte [AccentColour]
                 and al, 0xfc ; Red

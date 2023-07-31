@@ -258,13 +258,8 @@ TimeCmd:
 
 
 SoundCmd:
-    mov bx, word 500
-    call PlaySound
-
-    mov cx, 0x1
-    mov dx, 0x3000
-    mov ah, 0x86
-    int 0x15
+    lea si, SoundPlayTrack
+    call PlayTrack
 
     jmp GetCommand.AddNewLine
 
@@ -416,6 +411,8 @@ HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", 
 "  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  sound = test the pc speaker playing a sound", NewLine, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", NewLine, "Thanks mom :(", 0
 
+SoundPlayTrack: dw 6000, 6800, 6300, 5900, 5000, 0
+
 TimeString: times 16 db 32
 db 0
 
@@ -426,8 +423,8 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.2.1", 0
-FetchText3: db "21.86KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
+FetchText2: db "0.2.2", 0
+FetchText3: db "19.41KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
 FetchTextRam: times 6 db 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0

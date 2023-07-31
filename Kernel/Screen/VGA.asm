@@ -351,9 +351,11 @@ VgaGotoPos:
     ; (bh * VgaColumns + bl) * 2
     xor ax, ax
     xchg al, bh
-    mov dx, VgaColumns * 2
+    mov dx, VgaColumns
     mul dx
     add ax, bx
+    mov cl, 1
+    shl ax, cl
 
     mov word [cs:CursorPos], ax
     call VgaSetCursor
