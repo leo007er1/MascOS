@@ -48,11 +48,7 @@ DosInt21:
 ah1:
     push cx
 
-    push ds
-    mov ax, word KernelSeg
-    mov ds, ax
-    mov cl, byte [NormalColour]
-    pop ds
+    mov bl, byte [cs:NormalColour]
 
     xor ax, ax
     int 0x16
@@ -65,18 +61,14 @@ ah1:
 
 ; Write char to standard output
 ah2:
-    push cx
+    push bx
 
-    push ds
-    mov cx, word KernelSeg
-    mov ds, cx
-    mov cl, byte [NormalColour]
-    pop ds
+    mov bl, byte [cs:NormalColour]
 
     xchg al, dl
     call VgaPrintChar
 
-    pop cx
+    pop bx
     jmp ReturnFromInt
 
 
@@ -147,15 +139,15 @@ ah0a:
     push ds
     mov ax, word KernelSeg
     mov ds, ax
-    mov cl, byte [NormalColour]
+    mov bl, byte [NormalColour]
     pop ds
 
     mov si, dx
     mov bh, byte [ds:si] ; Buffer size
-    xor bl, bl
+    xor cl, cl
 
     .NextChar:
-        cmp bl, bh
+        cmp cl, bh
         je .CarriageReturn
 
         xor ax, ax
@@ -166,13 +158,13 @@ ah0a:
 
         call VgaPrintChar
         mov byte [ds:si], al ; Move char to buffer
-        inc bl
+        inc cl
         inc si
 
         jmp .NextChar
     
     .CarriageReturn:
-        mov byte [ds:si + 1], bl ; Number of chars readed
+        mov byte [ds:si + 1], cl ; Number of chars readed
 
         pop si
         pop cx
@@ -187,15 +179,10 @@ ah0d:
     push ax
     push dx
 
-    push ds
-    mov dx, word KernelSeg
-    mov ds, dx
-
     xor ah, ah
-    mov dl, byte [CurrentDisk]
+    mov dl, byte [cs:CurrentDisk]
     int 0x13
 
-    pop ds
     pop dx
     pop ax
     jmp ReturnFromInt
@@ -203,15 +190,7 @@ ah0d:
 
 ; Get current default drive
 ah19:
-    push bx
-
-    push ds
-    mov bx, word KernelSeg
-    mov ds, bx
-    mov al, byte [CurrentDisk]
-    pop ds
-
-    pop bx
+    mov al, byte [cs:CurrentDisk]
 
     jmp ReturnFromInt
 

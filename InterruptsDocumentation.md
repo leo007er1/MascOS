@@ -18,7 +18,7 @@ Disk routines for searching, loading files by messing with the FAT12 file system
 Finds a file in the root directory of FAT12, returning the pointer of the entry.
 
 `ah` = 0<br>
-`si` = pointer to file name. Needs to be a zero terminated string of 11 characters.
+`ds:si` = pointer to file name. Needs to be a zero terminated string of 11 characters.
 
 **Output**<br>
 `carry flag` = clear for success, set for error<br>
@@ -74,7 +74,7 @@ Prints a single character at cursor position.
 
 `ah` = 1<br>
 `al` = character to print<br>
-`cl` = attribute byte
+`bl` = attribute byte
 
 ### New line
 Adds the specified number of new lines, changing the cursor position.

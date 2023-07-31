@@ -25,43 +25,6 @@ CursorPos: dw 0
 
 
 
-; Prints a single character to the screen
-; Input:
-;   %1 = character to print
-;   %2 = attribute byte, set to 0 to use default colour
-%macro VgaPrintCharMacro 2
-    push bx
-    push es
-    push ds
-
-    mov bx, word KernelSeg
-    mov ds, bx
-    
-    mov cl, byte [NormalColour]
-    mov byte [NormalColour], %2
-
-    %%Print:
-        mov bx, word VgaBuffer
-        mov es, bx
-
-        ; Moves both character and attribute byte
-        mov bx, word [CursorPos]
-        mov ah, byte [NormalColour]
-        mov al, byte %1
-        mov word [es:bx], ax
-
-        add word [CursorPos], 2
-        inc byte [CurrentColumn]
-
-
-    mov byte [NormalColour], cl
-
-    pop ds
-    pop es
-    pop bx
-%endmacro
-
-
 ; Input:
 ;   %1 = number of new lines
 %macro VgaPrintNewLine 1
@@ -108,62 +71,21 @@ CursorPos: dw 0
     push ax
     push bx
     push dx
-    push ds
-
-    mov bx, word KernelSeg
-    mov ds, bx
 
     ; Yes, I'm too lazy to multiply CurrentColumn by 2
-    mov bl, byte [CurrentColumn]
+    mov bl, byte [cs:CurrentColumn]
     xor bh, bh
-    mov ax, word [CursorPos]
+    mov ax, word [cs:CursorPos]
     sub ax, bx
     sub ax, bx
 
-    mov word [CursorPos], ax
-    mov byte [CurrentColumn], 0
-
-    pop ds
-    pop dx
-    pop bx
-    pop ax
-%endmacro
-
-
-%macro VgaSetCursor 0
-    push ax
-    push bx
-    push dx
-
-    ; Divide CursorPos by 2(CursorPos is incremented by 2 because we count the attribute byte too)
-    xor dx, dx
-    mov ax, word [CursorPos]
-    mov bx, word 2
-    div bx
-    xchg ax, bx
-
-    mov dx, 0x3d4 ; I/O port
-    mov al, byte 0xf
-    out dx, al
-
-    inc dl
-    mov al, bl
-    out dx, al
-
-    dec dl
-    mov al, byte 0xe
-    out dx, al
-
-    inc dl
-    mov al, bh
-    out dx, al
+    mov word [cs:CursorPos], ax
+    mov byte [cs:CurrentColumn], 0
 
     pop dx
     pop bx
     pop ax
 %endmacro
-
-
 
 
 VgaInit:
@@ -268,6 +190,46 @@ VgaIntHandler:
 
 
 
+; Prints a single character to the screen
+; Input:
+;   al = character to print
+;   bl = attribute byte
+VgaPrintChar:
+    push ax
+    push bx
+    push dx
+    push es
+
+    mov dx, word VgaBuffer
+    mov es, dx
+
+    ; Moves both character and attribute byte
+    mov ah, bl
+    mov bx, word [cs:CursorPos]
+    mov word [es:bx], ax
+
+    ; If we are at the end of the row update values
+    mov al, byte [cs:CurrentColumn]
+    cmp al, byte VgaColumns
+    inc byte [cs:CurrentColumn]
+    jb .Skip
+
+    inc byte [cs:CurrentRow]
+    mov byte [cs:CurrentColumn], 0
+
+    .Skip:
+        add word [cs:CursorPos], 2
+        call VgaSetCursor
+
+        pop es
+        pop dx
+        pop bx
+        pop ax
+
+        ret
+
+
+
 ; Prints a string to the screen by writing manually to the vga buffer
 ; Input:
 ;   si = pointer to string
@@ -281,19 +243,14 @@ VgaPrintString:
 
     ; Setup process
     push es
-    push ds
-
     mov bx, VgaBuffer
     mov es, bx
-    mov bx, word KernelSeg
-    mov ds, bx
 
     ; Get the required values
-    mov bx, word [CursorPos]
-    mov dl, byte [CurrentColumn]
+    mov bx, word [cs:CursorPos]
+    mov dl, byte [cs:CurrentColumn]
     mov dh, al
 
-    pop ds
     mov ah, dh ; Ah will stay as it is now
 
     .PrintLoop:
@@ -327,14 +284,9 @@ VgaPrintString:
         jmp .PrintLoop
 
         .NewLine:
-            push ds
-            mov cx, word KernelSeg
-            mov ds, cx
-
             VgaPrintNewLine 1
-            mov bx, word [CursorPos] ; Get new CursorPos
+            mov bx, word [cs:CursorPos] ; Get new CursorPos
 
-            pop ds
             xor dl, dl ; CurrentColumn = 0
             jmp .PrintLoop
 
@@ -359,22 +311,8 @@ VgaPrintString:
         pop bx
         pop ax
 
-        VgaSetCursor
-
+        call VgaSetCursor
         ret
-
-
-
-; Prints a single character using VgaPrintCharMacro(don't wanna use macro directly)
-; Input:
-;   al = character
-;   cl = colour
-VgaPrintChar:
-    VgaPrintCharMacro al, cl
-    VgaSetCursor
-
-    ret
-
 
 
 
@@ -391,7 +329,7 @@ VgaNewLine:
 
     VgaCarriageReturn
     VgaPrintNewLine al
-    VgaSetCursor
+    call VgaSetCursor
 
     pop ds
     pop cx
@@ -418,7 +356,7 @@ VgaGotoLine:
     mul cx
 
     mov word [CursorPos], ax
-    VgaSetCursor
+    call VgaSetCursor
 
     pop ds
     ret
@@ -432,13 +370,9 @@ VgaGotoPos:
     push ax
     push bx
     push cx
-    push ds
 
-    mov ax, word KernelSeg
-    mov ds, ax
-
-    mov byte [CurrentColumn], bl
-    mov byte [CurrentRow], bh
+    mov byte [cs:CurrentColumn], bl
+    mov byte [cs:CurrentRow], bh
 
     ; (bh * VgaColumns + bl) * 2
     xor ax, ax
@@ -449,10 +383,9 @@ VgaGotoPos:
     mov cl, 1
     shl ax, cl
 
-    mov word [CursorPos], ax
-    VgaSetCursor
+    mov word [cs:CursorPos], ax
+    call VgaSetCursor
 
-    pop ds
     pop cx
     pop bx
     pop ax
@@ -470,21 +403,18 @@ VgaPaint:
     push bx
     push cx
     push dx
-    push ds
     push es
-    mov dx, word KernelSeg
-    mov ds, dx
     mov dx, VgaBuffer
     mov es, dx
 
     ; Can't do something like: push word [CursorPos]
-    mov dx, word [CursorPos]
+    mov dx, word [cs:CursorPos]
     push dx
-    mov dx, word [CurrentRow] ; Moves CurrentColumn too because together they are 2 bytes, we move a word both of them
+    mov dx, word [cs:CurrentRow] ; Moves CurrentColumn too because together they are 2 bytes, we move a word both of them
     push dx
 
-    mov byte [CurrentColumn], bl
-    mov byte [CurrentRow], bh
+    mov byte [cs:CurrentColumn], bl
+    mov byte [cs:CurrentRow], bh
 
     push ax
     push cx
@@ -510,12 +440,11 @@ VgaPaint:
     
     .Exit:
         pop dx
-        mov word [CurrentRow], dx ; Sets CurrentColumn too
+        mov word [cs:CurrentRow], dx ; Sets CurrentColumn too
         pop dx
-        mov word [CursorPos], dx
+        mov word [cs:CursorPos], dx
 
         pop es
-        pop ds
         pop dx
         pop cx
         pop bx
@@ -585,7 +514,7 @@ VgaScroll:
     sub byte [CurrentRow], bl
 
     .Finished:
-        VgaSetCursor
+        call VgaSetCursor
         
         pop ds
         pop dx
@@ -742,13 +671,8 @@ VgaPaintScreen:
 ;   bl = normal colour
 ;   bh = accent colour
 VgaGetColours:
-    push ds
-    mov bx, word KernelSeg
-    mov ds, bx
+    mov bx, word [cs:NormalColour]
 
-    mov bx, word [ds:NormalColour]
-
-    pop ds
     ret
 
 
@@ -757,15 +681,11 @@ VgaGetColours:
 ; I added this because it was needed by Edit program
 VgaBackspace:
     push bx
-    push ds
 
-    mov bx, word KernelSeg
-    mov ds, bx
+    mov al, byte [cs:CurrentColumn]
+    mov ah, byte [cs:CurrentRow]
 
-    mov al, byte [CurrentColumn]
-    mov ah, byte [CurrentRow]
-
-    cmp word [CursorPos], word 0
+    cmp word [cs:CursorPos], word 0
     jle .Exit
 
     or al, al
@@ -775,21 +695,59 @@ VgaBackspace:
     mov al, byte 79
 
     .Skip:
-        sub word [CursorPos], 2
-        mov cl, byte [NormalColour]
-        VgaPrintCharMacro 32, cl
+        push ax
+        sub word [cs:CursorPos], 2
 
-        ; Yes, again because VgaPrintCharMacro increments it by 2
-        sub word [CursorPos], 2
-        ; We decrese CurrentColumn by 2 because then VgaPrintCharMacro increments it
+        mov al, byte 32
+        mov bl, byte [cs:NormalColour]
+        call VgaPrintChar
+        pop ax
+
+        ; Yes, again because VgaPrintChar increments it by 2
+        sub word [cs:CursorPos], 2
+        ; We decrese CurrentColumn by 2 because then VgaPrintChar increments it
         dec al
 
-        VgaSetCursor
+        call VgaSetCursor
 
     .Exit:
-        mov byte [CurrentColumn], al
-        mov byte [CurrentRow], ah
+        mov byte [cs:CurrentColumn], al
+        mov byte [cs:CurrentRow], ah
 
-        pop ds
         pop bx
         ret
+
+
+
+VgaSetCursor:
+    push ax
+    push bx
+    push dx
+
+    ; Divide CursorPos by 2(CursorPos is incremented by 2 because we count the attribute byte too)
+    xor dx, dx
+    mov ax, word [cs:CursorPos]
+    mov bx, word 2
+    div bx
+    xchg ax, bx
+
+    mov dx, 0x3d4 ; I/O port
+    mov al, byte 0xf
+    out dx, al
+
+    inc dl
+    mov al, bl
+    out dx, al
+
+    dec dl
+    mov al, byte 0xe
+    out dx, al
+
+    inc dl
+    mov al, bh
+    out dx, al
+
+    pop dx
+    pop bx
+    pop ax
+    ret

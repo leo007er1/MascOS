@@ -159,20 +159,19 @@ GetCommand:
         sub word [CursorPos], 2
 
         mov al, byte 32
-        mov cl, byte [NormalColour]
-        VgaPrintCharMacro al, cl
+        mov bl, byte [NormalColour]
+        call VgaPrintChar
 
         ; Again because VgaPrintChar adds 2 to CursorPos
         sub word [CursorPos], 2
-        VgaSetCursor
+        call VgaSetCursor
 
         jmp GetCommand
 
 
     .Continue:
-        mov cl, byte [NormalColour]
-        VgaPrintCharMacro al, cl
-        VgaSetCursor
+        mov bl, byte [NormalColour]
+        call VgaPrintChar
 
         jmp GetCommand
 

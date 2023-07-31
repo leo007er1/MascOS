@@ -133,7 +133,7 @@ GetFirstFreeCluster:
 
 ; Searches for an entry in the root dir with the given file name
 ; Input:
-;   si = pointer to file name
+;   ds:si = pointer to file name
 ; Output:
 ;   carry flag = clear for success, set for error
 ;   si = pointer to entry in root dir

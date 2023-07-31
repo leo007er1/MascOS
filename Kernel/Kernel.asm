@@ -74,14 +74,11 @@ KernelMain:
 
 ; Loads a program and jumps to it in memory
 ; Input:
-;   si = pointer to file name, must be 11 characters with the last 3 being the extension
+;   ds:si = pointer to file name, must be 11 characters with the last 3 being the extension
 ; Output:
 ;   ! If operation fails it will return
 ;   carry flag = set
 LoadProgram:
-    push cx
-    push dx
-
     call SearchFile
     jc .NoBadValues
 
@@ -112,9 +109,6 @@ LoadProgram:
         mov ds, ax
         mov es, ax
         xor bx, bx
-
-        pop dx
-        pop cx
 
         ; Far jump to program
         push ax

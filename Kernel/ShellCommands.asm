@@ -126,11 +126,11 @@ touchCmd:
     jz .NoArg
 
     lea si, FileNameBuffer
-    mov cl, byte [NormalColour]
-    xor bl, bl
+    mov bl, byte [NormalColour]
+    xor cl, cl
 
     .NextChar:
-        cmp bl, 11 ; 11 is the maximum file name lenght
+        cmp cl, 11 ; 11 is the maximum file name lenght
         jge .CarriageReturn
 
         xor ax, ax
@@ -141,7 +141,7 @@ touchCmd:
 
         call VgaPrintChar
         mov byte [ds:si], al ; Move char to buffer
-        inc bl
+        inc cl
         inc si
 
         jmp .NextChar

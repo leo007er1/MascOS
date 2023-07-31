@@ -40,7 +40,7 @@ ReadDisk:
     mov dl, byte [BootDisk]
 
     ; CHS addressing
-    ; NOTE: In floppyes there are 18 sectors per track, with 2 DiskHeads and a total sectors count of 2880
+    ; NOTE: In floppyes there are 18 sectors per track, with 2 heads and a total sectors count of 2880
     mov ch, byte [ChsTrack] ; C (cylinder)
     mov dh, byte [ChsHead] ; H (head)
     mov cl, byte [ChsSector] ; S (sector). Starts from 1, not 0. Why?
