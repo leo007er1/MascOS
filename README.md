@@ -5,7 +5,7 @@
 ![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpeg)
 
 ## Current situation of the project
-The latest version shouldn't have bugs anymore or just a few, since I fixed every one of those I have found. MS DOS programs can *theoretically* run on this not so good operating system, but keep in mind I haven't tested anything and I haven't implemented everything needed for those programs to behave without issues. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
+The latest version shouldn't has bugs but I did fix every one of those I have found. MS DOS programs can *theoretically* run on this not so good operating system, but keep in mind I haven't tested anything and I haven't implemented everything needed for those programs to behave without issues. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
 
 I have tried to boot MascOS with a floppy disk(3.5 inch, 1.44MB) from an external usb floppy drive, and it worked almost flawlessly. It was tested on a Toshiba NB250 laptop.
 
@@ -28,31 +28,36 @@ Ubuntu/Linux Mint
 sudo apt install qemu
 ```
 
-After installing Qemu just do:
+After installing Qemu just type:
 ```sh
 make run
 ```
 
-It uses PulseAudio to emulate the pc speaker.
-If you want to run this on real hardware you need a computer with legacy BIOS and not a modern UEFI system, since MascOS aims to run on old hardware, and it will hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
+It uses PulseAudio to emulate the pc speaker, so if you're having troubles to run the operating system use this command instead:
+```sh
+qemu-system-i386 -fda Build/MascOS.flp -M smm=off -no-shutdown -no-reboot \
+	-cpu 486 -rtc base=localtime,clock=host
+```
+
+If you want to run this on real hardware you need a computer with **legacy BIOS** and *not* a modern UEFI system, since MascOS aims to run on old hardware, and it will, hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
 
 ## Compiling
 To compile MascOS you need these packages:
  - Nasm
 
-After installing these packages open a terminal window and clone this repo with:
+After installing the packages open a terminal window and clone this repo with:
 ```sh
 git clone https://github.com/leo007er1/MascOS.git && cd MascOS
 ```
 
-Now you can compile the last stable-usable version of MascOS or the latest one, but currently the stable one has some issue on machines other than mine apparently. If you compile the non-stable version you need sudo permissions because the Makefile mounts an image to /dev/loop7. To compile the "stable" versione run:
-```sh
-make stable
-```
-
-If you want to compile the latest version run:
+To compile the latest version run this command. You need sudo permissions because the Makefile mounts an image to /dev/loop7.
 ```sh
 sudo make
+```
+
+You can also choose to compile one of the oldest versions, v0.1.2. There's no purpose for this code to be there other than see how far I have come since I started the project. Note that after compiling it will automatically run the os with Qemu, so you need that installed.
+```sh
+make stable
 ```
 
 Also if you want to remove the compiled files and the os image run:

@@ -76,7 +76,7 @@ run:
 
 # Stable version
 .PHONY: stable
-stable: CheckUser CreateBuildDir
+stable: CreateBuildDir
 	clear
 	@echo -e "\n\e[0;32m==> Compiling bootloader...\e[0m"
 	$(Asm) -f bin $(BootloaderFlags) $(BootloaderDirStable)Bootloader.asm -o $(BuildDir)Bootloader.bin
