@@ -36,15 +36,15 @@ InitShell:
     mov al, byte [AccentColour]
     call VgaPrintString
 
-    ; si will be used for the command buffer position
-    xor si, si
-
-    jmp GetCommand
+    xor si, si ; si will be used for the command buffer position
 
 
 
 ; Waits for input and handles it
 GetCommand:
+    cmp si, word 32
+    je .ExecCommand
+
     WaitForKeyPress
 
     cmp al, byte 13
@@ -59,8 +59,8 @@ GetCommand:
     jmp .Continue
 
     .Enter:
-        test si, si
-        je .AddNewLine
+        or si, si
+        jz .AddNewLine
 
         .ExecCommand:
             lea di, helpCmdStr
@@ -148,7 +148,7 @@ GetCommand:
 
 
     .Backspace:
-        test si, si
+        or si, si
         jz GetCommand
 
         dec si
@@ -207,9 +207,6 @@ CompareCommand:
         ; If di is 0xff(end of command name) then it's a match
         cmp byte [di], byte 0xff
         je .Exit
-
-        cmp byte [si], byte 0
-        jne .GoBack
 
         .GoBack:
             pop si
@@ -343,7 +340,6 @@ ClearCommandBuffer:
 
 ; Sets every byte in attributes buffer to 0
 ClearAttributesBuffer:
-    push si
     xor bh, bh
     mov bl, byte [AttributesBufferPos]
 
@@ -356,18 +352,12 @@ ClearAttributesBuffer:
         jmp .Loop
 
     .Exit:
-        pop si
-        mov byte [AttributesBufferPos], byte 0
-        mov byte [AttributesCounter], byte 0
-
+        mov word [AttributesBufferPos], word 0
         ret
 
 
 CommandNotFound:
     push si
-
-    mov al, byte 1
-    call VgaPrintNewLine
 
     lea si, CommandNotFoundMessage
     mov al, byte [NormalColour]
@@ -386,8 +376,8 @@ AttributesBufferPos: db 0
 AttributesCounter: db 0
 
 CommandThing: db "-> ", 0
-InitShellMessage: db "Write 'help' to see command list", 10, 13, 10, 13, 0
-CommandNotFoundMessage: db "Command not found", 0
+InitShellMessage: db "Write 'help' to see command list", NewLine, NewLine, 0
+CommandNotFoundMessage: db NewLine, "Command not found", 0
 
 ; The commands have an extra letter at the end because if I remove it the command won't just run for some reason
 clearCmdStr: db "clear", 0xff

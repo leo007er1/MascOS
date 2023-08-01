@@ -123,47 +123,28 @@ FilesCmd:
 
 touchCmd:
     or ah, ah
-    jz .NoArg
+    jz .InvalidName
 
-    lea si, FileNameBuffer
-    mov bl, byte [NormalColour]
-    xor cl, cl
+    ; * I impressed myself with this piece of code. BEHOLD
 
-    .NextChar:
-        cmp cl, 11 ; 11 is the maximum file name lenght
-        jge .CarriageReturn
+    lea si, AttributesBuffer
+    call StringLenght
 
-        xor ax, ax
-        int 0x16
+    cmp cx, word 11 ; If the name is shorter than 11 bytes throw an error
+    jb .InvalidName
+    jg .InvalidName
 
-        cmp al, byte 13
-        je .CarriageReturn
+    ; Copy file name into TouchFcb
+    lea di, TouchFcb + 1
+    rep movsb
 
-        call VgaPrintChar
-        mov byte [ds:si], al ; Move char to buffer
-        inc cl
-        inc si
+    lea dx, TouchFcb
+    call CreateFile
 
-        jmp .NextChar
+    jmp GetCommand.AddNewLine
 
-    .CarriageReturn:
-        ; If the name is shorter than 4 bytes throw an error
-        cmp bl, byte 4
-        jl .NameTooShort
-
-        ; call CreateFile
-
-
-    .NameTooShort:
-        lea si, TouchNameTooShort
-        mov al, byte [AccentColour]
-        and al, 0xfc ; Red
-        call VgaPrintString
-
-        jmp GetCommand.AddNewLine
-
-    .NoArg:
-        lea si, TouchNoArg
+    .InvalidName:
+        lea si, TouchNameInvalid
         mov al, byte [AccentColour]
         and al, 0xfc ; Red
         call VgaPrintString
@@ -406,9 +387,9 @@ RunCmd:
 
 
 
-HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  files = launch the file manager", NewLine, "  time = show time and date", NewLine, \
+HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  touch = create a file", NewLine, "  files = launch the file manager", NewLine, "  time = show time and date", NewLine, \
 "  edit = edit text files", NewLine, "  run = execute a program", NewLine, "  reboot = reboots the system", NewLine, "  shutdown = shutdown the computer", NewLine, \
-"  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  sound = test the pc speaker playing a sound", NewLine, "  himom = ???", 0
+"  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  sound = test the pc speaker playing a short track", NewLine, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", NewLine, "Thanks mom :(", 0
 
 SoundPlayTrack: dw 6000, 6800, 6300, 5900, 5000, 0
@@ -442,8 +423,12 @@ db "   ", 0
 FilesProgramFileName: db "FILEMANACOM", 0
 
 ; Touch command
-TouchNoArg: db NewLine, "No file name inserted", 0
-TouchNameTooShort: db NewLine, "File name must be at least 4 characters(file extension included)", 0
+TouchFcb: db CurrentDisk ; Disk
+times 11 db 0 ; File name
+dw 0 ; Current block number
+dw 0 ; Logical record size
+dd 512 ; File size
+TouchNameInvalid: db NewLine, "File name must be 11 characters(file extension included)", 0
 
 ; TrashVim program stuff
 TrashVimProgramFileName: db "TRASHVIMCOM", 0

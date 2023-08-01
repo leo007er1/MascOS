@@ -49,10 +49,9 @@ DiskIntHandler:
 
 ; Scans the root directory for the first empty entry
 ; Output:
-;   di = offset to entry, also saved inside FirstEmptyEntry
+;   si = offset to entry
 GetFirstEmptyEntry:
     push ax
-    push si
     push es
 
     mov ax, RootDirMemLocation
@@ -67,12 +66,8 @@ GetFirstEmptyEntry:
 
         jmp .CheckEntry
 
-
     .FoundIt:
-        mov word [FirstEmptyEntry], di
-
         pop es
-        pop si
         pop ax
 
         ret
@@ -80,14 +75,12 @@ GetFirstEmptyEntry:
 
 
 ; As the name says, it finds the first unused cluster
-; Input:
-;   ax = cluster to start from
+; Output:
+;   ax = first empty cluster
 GetFirstFreeCluster:
     push bx
     push cx
     push dx
-
-    mov word [FirstEmptyCluster], ax
 
     push es
     mov bx, FATMemLocation
@@ -123,6 +116,8 @@ GetFirstFreeCluster:
             jmp .FindCluster
 
     .Exit:
+        mov ax, word [FirstEmptyCluster]
+
         pop es
         pop dx
         pop cx
@@ -298,65 +293,49 @@ GetFileSize:
 
 ; Creates a new empty file
 ; Input:
-;   si = pointer to file name
+;   ds:dx = pointer to File Control Block(FCB)
 CreateFile:
     push es
     push ds
-    push ds
 
-    lea si, FileNameBuffer
-        mov al, byte [AccentColour]
-        call VgaPrintString
+    mov ax, word RootDirMemLocation
+    mov es, ax
+    
+    call GetFirstEmptyEntry
 
-        cli
-        hlt
+    ; Copy file name into entry
+    xchg si, di
+    mov si, dx
+    inc si ; Point to file name
+    mov cx, word 11
+    rep movsb
 
-    pop es ; Set es to ds
-    mov bx, word KernelSeg
-    mov ds, bx
-    xor bx, bx
+    call GetFirstFreeCluster
+    push ax ; Save first free cluster
+    push dx ; Save FCB pointer
 
-    ; Calculate lenght of file name
-    .NameLenght:
-        cmp bx, byte 11
-        je .NameToBuffer
+    mov si, dx
+    mov ax, word [si + 0x10] ; File size
+    mov dx, word [si + 0x12] ; File size
+    mov bx, BytesPerSector
+    div bx
 
-        mov al, byte [es:si + bx]
+    or dx, dx ; If remainder isn't 0 we need to count another sector
+    jz .NoExtraSector
+    inc ax
 
-        ; If the name is shorter than 4 bytes throw an error
-        test al, al
-        jnz .Continue
-        cmp bx, byte 4
-        jb .Error
+    .NoExtraSector:
+        pop dx
+        pop ax
 
-        .Continue:
-            mov byte [FileNameBuffer + bx], al ; Move to buffer
-            inc bx
-            inc si
+        ; call WriteFat
+        call WriteRootDir
 
-            jmp .NameLenght
-
-    .NameToBuffer:
-        lea si, FileNameBuffer
-        mov al, byte [AccentColour]
-        call VgaPrintString
-
-        cli
-        hlt
-
-        call GetFirstEmptyEntry
-
-
-
-    ; Now let's check for a free cluster in FAT
-    ; TODO: Capire come scrivere nel FAT senza spaccarlo in due
-    ; TODO: e anche come capire di quale cluster si sta parlando
-
-    .Error:
-        cli
-        hlt
-
+        pop ds
+        pop es
         ret
+
+
 
 
 
@@ -456,7 +435,7 @@ LoadFile:
 
 ; Reads the disk into the specified buffer in memory
 ; Input:
-;   es:bx = buffer offset
+;   es:bx = data buffer
 ;   al = sectors to read
 ReadDisk:
     mov ah, byte 2 ; Read please
@@ -558,7 +537,7 @@ CurrentDisk: db 0
 CurrentCluster: dw 0
 FileOffset: dw 0
 FirstEmptyEntry: dw 0
-FirstEmptyCluster: dw 0
+FirstEmptyCluster: dw 3 ; First data cluster
 FileNameBuffer: times 11 db 0
 FileNameBufferSize: db 0
 
