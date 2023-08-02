@@ -16,8 +16,7 @@
 
 
 
-ProgramEntryPoint:
-    jmp EditProgram
+jmp EditProgram
 
 
 

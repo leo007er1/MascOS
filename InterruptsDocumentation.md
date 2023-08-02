@@ -29,7 +29,7 @@ Loads a file at the specified offset in memory. The offset is specified by `es:b
 Just don't write mistakenly(or on purpose?) write over the kernel or at any lower memory offset.
 
 `ah` = 1<br>
-`di` = pointer to entry in root dir<br>
+`si` = offset to entry in root dir<br>
 `es:bx` = offset to read to
 
 ### Get a file name

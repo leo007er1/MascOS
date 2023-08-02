@@ -134,17 +134,44 @@ touchCmd:
     jb .InvalidName
     jg .InvalidName
 
-    ; Copy file name into TouchFcb
-    lea di, TouchFcb + 1
+    ; Copy file name into FileFcb
+    lea di, FileFcb + 1
     rep movsb
 
-    lea dx, TouchFcb
+    lea dx, FileFcb
     call CreateFile
 
     jmp GetCommand.AddNewLine
 
     .InvalidName:
         lea si, TouchNameInvalid
+        mov al, byte [AccentColour]
+        and al, 0xfc ; Red
+        call VgaPrintString
+
+        jmp GetCommand.AddNewLine
+
+
+renameCmd:
+    or ah, ah
+    lea si, TouchNameInvalid
+    jz .Invalid
+
+    lea si, AttributesBuffer
+    call StringLenght
+
+    cmp cx, word 23
+    lea si, TouchNameInvalid
+    jb .Invalid
+    jg .Invalid
+
+    lea di, AttributesBuffer
+    lea si, AttributesBuffer + 12
+    call RenameFile
+    lea si, TrashVimProgramBadArgument
+    jnc GetCommand.AddNewLine
+
+    .Invalid:
         mov al, byte [AccentColour]
         and al, 0xfc ; Red
         call VgaPrintString
@@ -336,19 +363,18 @@ TrashVimCmd:
     jc .BadArgument
 
     ; Saves the pointer to file entry
+    push es
     mov bx, word ProgramSeg
     mov es, bx
     mov bx, 2
     mov word [es:bx], si
+    pop es
 
     lea si, TrashVimProgramFileName
     call LoadProgram
     jc .Error
 
     .BadArgument:
-        mov al, byte 1
-        call VgaPrintNewLine
-
         lea si, TrashVimProgramBadArgument
         mov al, byte [AccentColour]
         and al, 0xfc ; Red
@@ -371,9 +397,6 @@ RunCmd:
     jc .Error
 
     .BadArgument:
-        mov al, byte 1
-        call VgaPrintNewLine
-
         lea si, TrashVimProgramBadArgument
         mov al, byte [AccentColour]
         and al, 0xfc ; Red
@@ -387,8 +410,8 @@ RunCmd:
 
 
 
-HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  touch = create a file", NewLine, "  files = launch the file manager", NewLine, "  time = show time and date", NewLine, \
-"  edit = edit text files", NewLine, "  run = execute a program", NewLine, "  reboot = reboots the system", NewLine, "  shutdown = shutdown the computer", NewLine, \
+HelpText: db "  clear = clears the terminal", NewLine, "  ls = list all files", NewLine, "  touch = create a file", NewLine, "  rename = renames a file", NewLine, "  files = launch the file manager", NewLine, \
+"  time = show time and date", NewLine, "  edit = edit text files", NewLine, "  run = execute a program", NewLine, "  reboot = reboots the system", NewLine, "  shutdown = shutdown the computer", NewLine, \
 "  standby = put system in standby", NewLine, "  fetch = show system info", NewLine, "  colour = change screen colours", NewLine, "  sound = test the pc speaker playing a short track", NewLine, "  himom = ???", 0
 HimomText: db "Mom: No one cares about you, honey", NewLine, "Thanks mom :(", 0
 
@@ -422,8 +445,7 @@ db "   ", 0
 
 FilesProgramFileName: db "FILEMANACOM", 0
 
-; Touch command
-TouchFcb: db CurrentDisk ; Disk
+FileFcb: db CurrentDisk ; Disk
 times 11 db 0 ; File name
 dw 0 ; Current block number
 dw 0 ; Logical record size
@@ -432,4 +454,4 @@ TouchNameInvalid: db NewLine, "File name must be 11 characters(file extension in
 
 ; TrashVim program stuff
 TrashVimProgramFileName: db "TRASHVIMCOM", 0
-TrashVimProgramBadArgument: db "File doesn't exist", 0
+TrashVimProgramBadArgument: db NewLine, "File doesn't exist", 0

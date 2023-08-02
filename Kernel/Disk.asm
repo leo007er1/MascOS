@@ -222,44 +222,48 @@ GetFileName:
 
 ; Renames a file with the given string. Changes extension!
 ; Input:
-;   ds:si = pointer to file to rename
-;   es:di = pointer to new file name
+;   ds:si = pointer to new file name
+;   es:di = pointer to old file name
 ; Output:
-;   carry flag = set for invalid file name, clear for success
+;   carry flag = set for error, clear for success
 RenameFile:
-    push ax
     push cx
+    push ds
+    push es
+    push ds
+
     push si
-    push di
+    push es
+    pop ds
+    mov si, di
+    call SearchFile
+    jc .NotFound
 
-    xchg si, di
-    call StringLenght
+    mov di, si ; di = offset to entry
+    pop si
+    pop ds
 
-    cmp cl, byte 11
-    jne .InvalidFileName
-    xchg si, di
-    xor ch, ch ; It's better to clean ch
+    mov cx, word RootDirMemLocation
+    mov es, cx
 
-    .loop:
-        mov al, byte [es:di]
-        mov byte [si], al
+    ; Copy name
+    mov cx, word 11
+    rep movsb
 
-        inc si
-        inc di
-        loop .loop
+    call WriteRootDir ; Write changes to disk
 
-        clc
-        jmp .Exit
+    clc
+    pop es
+    pop ds
+    pop cx
+    ret
 
-    .InvalidFileName:
-        xchg si, di
-        stc
-
-    .Exit:
-        pop di
+    .NotFound:
         pop si
+        pop ds
+        pop es
+        pop ds
         pop cx
-        pop ax
         ret
 
 
@@ -304,6 +308,7 @@ CreateFile:
     call GetFirstEmptyEntry
 
     ; Copy file name into entry
+    push si
     xchg si, di
     mov si, dx
     inc si ; Point to file name
@@ -311,12 +316,16 @@ CreateFile:
     rep movsb
 
     call GetFirstFreeCluster
+    pop di
     push ax ; Save first free cluster
     push dx ; Save FCB pointer
 
     mov si, dx
     mov ax, word [si + 0x10] ; File size
     mov dx, word [si + 0x12] ; File size
+    mov word [es:di + 0x1c], ax ; Save file size to entry
+    mov word [es:di + 0x1e], dx
+    
     mov bx, BytesPerSector
     div bx
 
@@ -341,7 +350,7 @@ CreateFile:
 
 ; Loads a file to the specified buffer
 ; Input:
-;   si = pointer to entry in root dir
+;   si = offset to entry in root dir
 ;   es:bx = offset to read to
 LoadFile:
     push ax

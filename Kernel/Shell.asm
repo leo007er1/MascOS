@@ -99,6 +99,10 @@ GetCommand:
             call CompareCommand
             jnc touchCmd
 
+            lea di, renameCmdStr
+            call CompareCommand
+            jnc renameCmd
+
             lea di, rebootCmdStr
             call CompareCommand
             jnc RebootCmd
@@ -210,7 +214,7 @@ CompareCommand:
 
         .GoBack:
             pop si
-            xor al, al
+            xor ah, ah
             stc
 
             ret
@@ -222,13 +226,11 @@ CompareCommand:
         xor cl, cl
 
         .Loop:
-            mov al, byte [si]
+            lodsb
             cmp al, byte " "
-            je .Continue
+            je .Loop
 
-        .CheckForEnd:
-            or al, al
-            jz .Exit
+            dec si
 
         ; When we encounter a text character in our journey inside
         ; the roots of the jungle, this happens...
@@ -237,18 +239,10 @@ CompareCommand:
             or al, al
             jz .AttributeEnd
 
-            ; cmp byte [si], byte " "
-            ; jne .YetAnotherChar
-            jmp .YetAnotherChar
+            cmp al, byte " "
+            jne .YetAnotherChar
 
-            ; END OF ATTRIBUTE
-            ; inc ah
-            ; inc di
-            ; mov byte [di], byte 0xff ; We separate attributes with 0xff
-            ; add byte [AttributesBufferPos], byte 2
-            ; inc di
-
-            ; jmp .Continue
+            inc ah
 
             .YetAnotherChar:
                 mov byte [di], al ; Moves character to buffer
@@ -256,10 +250,6 @@ CompareCommand:
                 inc di
                 inc cl
                 jmp .Attribute
-
-        .Continue:
-            inc si
-            jmp .Loop
 
 
     .AttributeEnd:
@@ -279,44 +269,36 @@ CompareCommand:
 
 ; Returns in si the pointer in the AttributesBuffer of the selected attribute
 ; Input:
-;   al = attribute number
+;   ah = attribute number
 ; Output:
 ;   carry flag = set for error, clear for success
-;   si = pointer to attribute in AttributesBuffer
+;   ds:si = pointer to attribute in AttributesBuffer
 GetAttribute:
-    ; If al is greater the given number is invalid. Stupid (joking)
-    cmp al, byte [AttributesCounter]
-    jng .CheckForZero
+    cmp ah, byte [AttributesCounter]
+    jg .Error
 
-    stc
-    ret
+    lea si, AttributesBuffer
+    xor cl, cl
 
-    .CheckForZero:
-        test al, al
-        jnz .FindAttribute
+    .Loop:
+        cmp cl, ah
+        jge .GetOut
 
-        lea si, AttributesBuffer
-        ret
+        lodsb
+        or al, al
+        jz .Error
+        cmp al, byte 32
+        jne .Loop
 
-    .FindAttribute:
-        lea si, AttributesBuffer
-
-        .Loop:
-            test al, al
-            jz .GetOut
-
-            cmp byte [si], byte 0xff
-            je .NextAttribute
-            inc si
-
-            jmp .Loop
-
-            .NextAttribute:
-                dec al
-                jmp .Loop
+        inc cl
+        jmp .Loop
 
     .GetOut:
         clc
+        ret
+
+    .Error:
+        stc
         ret
 
 
@@ -384,6 +366,7 @@ clearCmdStr: db "clear", 0xff
 helpCmdStr: db "help", 0xff
 lsCmdStr: db "ls", 0xff
 touchCmdStr: db "touch", 0xff
+renameCmdStr: db "rename", 0xff
 trashVimCmdStr: db "edit", 0xff
 fetchCmdStr: db "fetch", 0xff
 himomCmdStr: db "himom", 0xff
