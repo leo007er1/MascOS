@@ -11,7 +11,7 @@
 ;
 ;* Offset       |  Int         |  Description
 ;  0x0 - 0x78   |  0x0 - 0x1f  |  Stuff, look online for more details
-;  0x80 - 0x400 |  0x1f - 0xff |  Interrupts we can set
+;  0x80 - 0x400 |  0x20 - 0xff |  Interrupts we can set
 
 
 

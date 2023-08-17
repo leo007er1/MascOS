@@ -31,10 +31,14 @@ DosInt21:
     je ah0d
     cmp ah, byte 0x19
     je ah19
+    cmp ah, byte 0x25
+    je ah25
     cmp ah, byte 0x2a
     je ah2a
     cmp ah, byte 0x2c
     je ah2c
+    cmp ah, byte 0x35
+    je ah35
     cmp ah, byte 0x4c
     je ah4c
     cmp ah, byte 0x56
@@ -195,6 +199,23 @@ ah19:
     jmp ReturnFromInt
 
 
+; Set interrupt vector
+ah25:
+    push bx
+    push cx
+
+    mov bl, al
+    mov cl, 2
+    shl bx, cl ; bx * 4
+
+    mov word [es:bx], ds ; Set segment
+    mov word [es:bx + 2], dx ; Set base
+
+    pop cx
+    pop bx
+    jmp ReturnFromInt
+
+
 ; Get system date
 ah2a:
     push bx
@@ -232,6 +253,21 @@ ah2c:
     pop cx
     pop bx
     pop ax
+    jmp ReturnFromInt
+
+
+; Get interrupt vector
+ah35:
+    push cx
+
+    xor bx, bx
+    mov es, bx
+
+    mov bl, al
+    mov cl, 2
+    shl bx, cl ; bx * 4
+
+    pop cx
     jmp ReturnFromInt
 
 
