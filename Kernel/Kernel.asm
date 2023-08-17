@@ -105,11 +105,35 @@ LoadProgram:
         mov bx, word ProgramOffset ; Offset
         call LoadFile
 
+    .CheckExtension:
+        mov ax, word RootDirMemLocation
+        mov ds, ax
+
+        mov ax, word [si + 8]
+        mov cl, byte [si + 10]
+        
+        cmp ax, word 0x4f43 ; "CO"
+        cmp cl, 0x4d ; "M"
+        je .ComProgram
+
+        cmp ax, word 0x4942 ; "BI"
+        cmp cl, byte 0x4e ; "N"
+        jne .NoBadValues
+
+        ; .BIN program
+        xor bx, bx
+        mov ax, word ProgramSeg + (ProgramOffset / 16)
+        mov ds, ax
+        mov es, ax
+        jmp .JumpToProgram
+
+    .ComProgram:
+        mov bx, word 0x100
         mov ax, word ProgramSeg
         mov ds, ax
         mov es, ax
-        xor bx, bx
 
+    .JumpToProgram:
         ; Far jump to program
         push ax
         push bx
@@ -289,6 +313,9 @@ BiosEquipmentWord: dw 0 ; Are there any serial, parallel ports and other stuff
 
 ; Ports info
 ParallelPorts: times 3 dw 0
+
+ComExtension: db "COM", 0
+BinExtension: db "BIN", 0
 
 ; Logo stuff
 MascLogoSpace: db "                    ", 0

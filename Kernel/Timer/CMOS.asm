@@ -21,6 +21,7 @@ RtcMonth equ 0x08
 RtcDayOfMonth equ 0x07
 RtcHours equ 0x04
 RtcMinutes equ 0x02
+RtcSeconds equ 0x00
 
 NmiDisableBit equ 0x01
 NmiEnableBit equ 0x00
@@ -105,9 +106,8 @@ CmosGetSystemDate:
 ; Output:
 ;   al = minutes
 ;   ah = hours
+;   bl = seconds
 CmosGetSystemTime:
-    push bx
-
     ; Hours
     mov ah, RtcHours
     call CmosRead
@@ -120,8 +120,15 @@ CmosGetSystemTime:
     call BinaryToBcd
 
     mov ah, bl
+    push ax
 
-    pop bx
+    ; Seconds
+    mov ah, RtcSeconds
+    call CmosRead
+    call BinaryToBcd
+
+    mov bl, al
+    pop ax
 
     ret
 

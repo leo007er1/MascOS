@@ -212,12 +212,25 @@ ah2a:
 ; Get system time
 ah2c:
     push ax
+    push bx
 
     call CmosGetSystemTime
     mov ch, ah ; Hours
     mov cl, al ; Minutes
-    xor dl, dl ; ????
+    mov dh, bl ; Seconds
 
+    ; Get hundredths
+    push cx
+    push dx
+    xor dx, dx
+    xor ah, ah
+    mov cx, word 60
+    div cx
+
+    ; dl is hundredths
+    pop dx
+    pop cx
+    pop bx
     pop ax
     jmp ReturnFromInt
 

@@ -357,6 +357,7 @@ LoadFile:
     push bx
     push cx
     push dx
+    push si
     push es
 
     mov ax, RootDirMemLocation
@@ -429,6 +430,7 @@ LoadFile:
 
             pop ds
             pop es
+            pop si
             pop dx
             pop cx
             pop bx
@@ -436,6 +438,47 @@ LoadFile:
             ret
 
 
+; *NOTES:
+;   Prendere grandezza file in settori
+;   Prendere primo cluster dalla root dir
+;   Scrivere dal data buffer sul disco prendendo nuovi cluster se necessario
+;   Scrivere i FAT
+
+; Write contents to a file
+; Input:
+;   ds:si = offset to entry in root dir
+;   es:bx = data buffer
+;   cx = new file size
+WriteFile:
+    push bx
+
+    ; mov bx, 
+
+    ; Get new file size in sectors
+    xor dx, dx
+    mov ax, word BytesPerSector
+    xchg ax, cx
+    div cx
+
+    or dx, dx ; Is the remainder 0?
+    jz .GetNewClusters
+    inc ax ; + 1 cluster
+
+    .GetNewClusters:
+        xor dx, dx
+        xor bh, bh
+        mov bl, byte [SectorsPerCluster]
+        mul bl
+
+        or ax, ax ; If the clusters are 0 then do nothing
+        jz .End
+
+        mov word [ClusterCount], ax
+
+        mov ax, word [si + 0x1a] ; First cluster
+
+    .End:
+        ret
 
 
 
@@ -551,9 +594,7 @@ FileNameBuffer: times 11 db 0
 FileNameBufferSize: db 0
 
 ; WriteFile variables
-SectorCount: dw 0
-SectorsUsedByFile: dw 0
-ClustersToWrite: times 128 dw 0
+ClusterCount: dw 0
 
 ChsSector: db 0
 ChsTrack: db 0

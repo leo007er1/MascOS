@@ -29,8 +29,8 @@ StringLenght:
 
 ; Compares 2 strings
 ; Input:
-;   si = first string
-;   di = second string
+;   ds:si = first string
+;   es:di = second string
 ; Output:
 ;   carry flag = clear for identical strings, set for a mismatch
 ;   si and di = first mismatch in both strings
@@ -38,7 +38,6 @@ StringCompare:
     push cx
 
     cld
-
     push si
     call StringLenght
     pop si
@@ -46,7 +45,7 @@ StringCompare:
     ; cx is how many bytes to compare
     .loop:
         mov al, byte [si]
-        mov ah, byte [di]
+        mov ah, byte [es:di]
 
         cmp al, ah
         jne .Mismatch

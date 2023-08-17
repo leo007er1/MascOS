@@ -386,15 +386,10 @@ TrashVimCmd:
 
 RunCmd:
     or ah, ah
-    jz TrashVimCmd.Error
-
-    lea si, AttributesBuffer
-    call SearchFile
-    jc .BadArgument
+    jz GetCommand.AddNewLine
 
     lea si, AttributesBuffer
     call LoadProgram
-    jc .Error
 
     .BadArgument:
         lea si, TrashVimProgramBadArgument
@@ -402,7 +397,6 @@ RunCmd:
         and al, 0xfc ; Red
         call VgaPrintString
 
-    .Error:
         jmp GetCommand.AddNewLine
 
 
