@@ -50,8 +50,8 @@ KernelMain:
     call PrintLogo
 
     ; Waits cx:dx microseconds
-    mov cx, 0x19
-    mov dx, 0x4240
+    mov cx, 15
+    mov dx, 10000
     mov ah, 0x86
     int 0x15
 

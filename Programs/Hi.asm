@@ -16,4 +16,4 @@ int 0x21
 int 0x20
 
 
-string: db 10, 13, "Hello world!", 0
+string: db "Hello world!", 0

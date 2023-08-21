@@ -3,9 +3,10 @@
 
 ![MascOS logo](./Showcase/MascOSLogo.png)
 ![MascOS shell with the ls and fetch command](./Showcase/MascOSShell.jpeg)
+![Floppy Bird running on MascOS](./Showcase/MascOSFloppyBird.jpeg)
 
 ## Current situation of the project
-The latest version shouldn't have bugs but I did fix every one of those I have found. MS DOS programs can *theoretically* run on this not so good operating system, but keep in mind I haven't tested anything and I haven't implemented everything needed for those programs to behave without issues. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
+The latest version shouldn't have bugs but I did fix every one of those I have found. I tried to run these 2 DOS games: [DOS Defender](https://github.com/skeeto/dosdefender-ld31), an Asteroids clone, and [Floppy Bird](https://github.com/icebreaker/floppybird), a Flappy Bird clone. They work but I can't fully test DOS Defender because I don't have a joystick. Other MS DOS programs can *theoretically* run on this not so good operating system, but keep in mind I haven't tested every program and I haven't implemented everything needed for those programs to behave without issues. The "stable" version doesn't have FAT12 and it's there for no reason, other than boosting my energy when I see how much progress I have made since I began this project.
 
 I have tried to boot MascOS with a floppy disk(3.5 inch, 1.44MB) from an external usb floppy drive, and it worked almost flawlessly. It was tested on a Toshiba NB250 laptop.
 

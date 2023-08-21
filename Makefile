@@ -13,7 +13,7 @@ override FilesDir := Files/
 
 OsFiles := $(shell find -L $(FilesDir) -type f)
 OsPrograms := $(shell find -L $(ProgramsDir) -type f -name "*.asm")
-OsProgramsObjs := $(patsubst %.asm, %.com, $(subst $(ProgramsDir), $(BuildDir), $(OsPrograms)))
+OsProgramsObjs := $(patsubst %.asm, %.com, $(subst $(ProgramsDir), $(BuildDir), $(OsPrograms))) Build/dosdef.com Build/flpybird.com
 
 BootloaderDirStable := Stable/Bootloader/
 KernelDirStable := Stable/Kernel/

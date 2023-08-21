@@ -50,8 +50,8 @@ PlaySound:
     out 0x61, al
 
     ; Waits a few milliseconds
-    mov cx, 0x1
-    mov dx, 0x3000
+    xor cx, cx
+    mov dx, 20000
     mov ah, 0x86
     int 0x15
 

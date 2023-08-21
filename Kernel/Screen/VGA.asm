@@ -196,8 +196,9 @@ VgaPrintString:
         jz .Exit
 
         ; MS DOS terminates strings with a dollar sign....
-        ; cmp al, byte "$"
-        ; je .Exit
+        cmp al, byte "$"
+        je .Exit
+        jg .SkipChecks
 
         cmp al, byte 10
         je .NewLine
@@ -205,6 +206,7 @@ VgaPrintString:
         cmp al, byte 13
         je .CarriageReturn
 
+    .SkipChecks:
         ; The first byte is the character, the second the attribute byte
         mov word [es:bx], ax ; Move character and attribute byte
 

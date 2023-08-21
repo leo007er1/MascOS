@@ -388,6 +388,9 @@ RunCmd:
     or ah, ah
     jz GetCommand.AddNewLine
 
+    mov al, 1
+    call VgaPrintNewLine
+
     lea si, AttributesBuffer
     call LoadProgram
 
@@ -421,8 +424,8 @@ FetchLabel1: db "os    ", 0
 FetchLabel2: db "ver   ", 0
 FetchLabel3: db "ram   ", 0
 FetchText1: db "MascOS", 0
-FetchText2: db "0.2.2", 0
-FetchText3: db "19.41KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
+FetchText2: db "0.2.3", 0
+FetchText3: db "19.47KB / " ; I'm a genious, I removed the 0 here so it prints FetchTextRam too
 FetchTextRam: times 6 db 0
 FetchLogo0: db "  _  ,/|    ", 0
 FetchLogo1: db " '\`o.O'   _", 0

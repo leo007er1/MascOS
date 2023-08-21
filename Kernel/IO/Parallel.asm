@@ -6,56 +6,71 @@
 
 
 
-
 ; *NOTE: hasn't been tested
-; Sends a byte to the printer connected to the first parallel port
+; Sends a byte to device connected to the first parallel port
 ; Input:
 ;   al = byte to send
-ParallelSendToPrinter:
+ParallelSendByte:
     push ax
+
+    xor cx, cx
     mov dx, word [ParallelPorts]
     inc dx ; Status register
 
-    .WaitForPrinter:
+    .WaitForDevice:
         in al, dx
         and al, byte 0x80 ; Checks the BUSY bit
         
-        test al, al
+        or al, al
         jz .Send
 
-        ; TODO: Wait 10 milliseconds...
+        ; Wait 10 milliseconds
+        push dx
+        mov dx, 0x2710 ; 10000 microseconds aka 10 milliseconds
+        mov ah, byte 0x86
+        int 0x15
+        pop dx
 
-        jmp .WaitForPrinter
+        jmp .WaitForDevice
 
     .Send:
         pop ax
         dec dx ; Data register
-
         out dx, al
 
-        ; Now we need to tell the printer that it can read the byte we sent
+        ; Pulse STROBE line. Tells the device to read the byte we sent
         add dx, word 2 ; Control register
         in al, dx
         mov bl, al
-        or al, byte 1 ; STROBE bit
+        or al, 1 ; STROBE bit
 
-        ; TODO: Wait 10 milliseconds...
+        ; Wait 10 milliseconds
+        push dx
+        mov dx, 0x2710
+        mov ah, byte 0x86
+        int 0x15
+        pop dx
 
         mov al, bl
         out dx, al
         dec dx ; Control register
+        xor cx, cx
 
-
-    .WaitPrinter:
+    .WaitDevice:
         in al, dx
         and al, byte 0x80 ; Checks the BUSY bit
         
-        test al, al
+        or al, al
         jz .End
 
-        ; TODO: Wait 10 milliseconds...
+        ; Wait 10 milliseconds
+        push dx
+        mov dx, 0x2710 ; 10000 microseconds aka 10 milliseconds
+        mov ah, byte 0x86
+        int 0x15
+        pop dx
 
-        jmp .WaitPrinter
+        jmp .WaitDevice
 
     .End:
         ret
