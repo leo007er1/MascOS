@@ -689,11 +689,9 @@ VgaSetCursor:
     push bx
     push dx
 
-    ; Divide CursorPos by 2(CursorPos is incremented by 2 because we count the attribute byte too)
-    xor dx, dx
     mov ax, word [cs:CursorPos]
-    mov bx, word 2
-    div bx
+    mov cl, 1
+    shr ax, cl
     xchg ax, bx
 
     mov dx, 0x3d4 ; I/O port

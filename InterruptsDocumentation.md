@@ -9,7 +9,7 @@ This interrupt gets invoked whenever an external program ends it's job and wants
 ## Int 0x21
 This is the same interrupt as the MS DOS one. You can find the list of the functions of this interrupt online. Here's the [first one I found online.](http://spike.scu.edu.au/~barry/interrupts.html)
 
-I only have implemented the functions for ah set to 0x1 to 0xa exluding 0x5, then 0xd, 0x19, 0x2a, 0x2c, 0x4c, 0x56.
+I only have implemented the functions for ah set to 0x1 to 0xa exluding 0x5, then 0xd, 0x19, 0x25, 0x2a, 0x2c, 0x35, 0x4c, 0x56.
 
 ## Int 0x22
 Disk routines for searching, loading files by messing with the FAT12 file system.
@@ -29,20 +29,20 @@ Loads a file at the specified offset in memory. The offset is specified by `es:b
 Just don't write mistakenly(or on purpose?) write over the kernel or at any lower memory offset.
 
 `ah` = 1<br>
-`si` = offset to entry in root dir<br>
+`ds:si` = offset to entry in root dir<br>
 `es:bx` = offset to read to
 
 ### Get a file name
 Gets the name and file extension of a file, via the specified pointer to the entry in the root directory.
 
 `ah` = 2<br>
-`si` = pointer to string to output name to. Needs to be 12 characters because remember the 0 at the end.
+`ds:si` = pointer to string to output name to. Needs to be 12 characters because remember the 0 at the end.
 
 ### Get a file size
 Gets the file size and returns the value in kilobytes(KB).
 
 `ah` = 3<br>
-`si` = pointer to entry in root directory
+`ds:si` = pointer to entry in root directory
 
 **Output**<br>
 `ax` = file size in KB

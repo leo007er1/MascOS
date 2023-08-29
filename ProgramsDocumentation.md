@@ -5,7 +5,7 @@
 
 
 ## Program structure
-You first need to know some stuff first, such as how a program gets loaded and how it gets terminated. You can use Assembly to create your thing. Fun fact: you can use C in 16-bits, but not here because I need to implement standard library.
+You first need to know some stuff first, such as how a program gets loaded and how it gets terminated. You can use Assembly to create your fabulous code. If you're program is a .COM executable file it **must** have the `[org 0x100]` directive, if instead it's a .BIN executable then remove that directive.
 
 The general layout of a program is this:
 ```x86asm

@@ -86,7 +86,8 @@ LoadProgram:
     mov bx, si ; si is contains the pointer to entry in root directory
     call GetFileSize
 
-    shl ax, 1 ; ax * 2
+    mov cl, 1
+    shl ax, cl ; ax * 2
 
     ; If dx = 0, we need to count another sector
     or dx, dx
