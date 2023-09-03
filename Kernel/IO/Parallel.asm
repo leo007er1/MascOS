@@ -12,6 +12,8 @@
 ;   al = byte to send
 ParallelSendByte:
     push ax
+    push cx
+    push dx
 
     xor cx, cx
     mov dx, word [ParallelPorts]
@@ -73,4 +75,7 @@ ParallelSendByte:
         jmp .WaitDevice
 
     .End:
+        pop dx
+        pop cx
+        pop ax
         ret

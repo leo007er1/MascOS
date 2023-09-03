@@ -11,8 +11,8 @@ DosInt21:
     je ah3
     cmp ah, byte 0x4
     je ah4
-    ; cmp ah, byte 0x5
-    ; je ah5
+    cmp ah, byte 0x5
+    je ah5
     cmp ah, byte 0x6
     je ah6
     cmp ah, byte 0x7
@@ -29,6 +29,8 @@ DosInt21:
     ; je ah0c
     cmp ah, byte 0xd
     je ah0d
+    cmp ah, byte 0x17
+    je ah17
     cmp ah, byte 0x19
     je ah19
     cmp ah, byte 0x25
@@ -37,6 +39,8 @@ DosInt21:
     je ah2a
     cmp ah, byte 0x2c
     je ah2c
+    cmp ah, byte 0x30
+    je ah30
     cmp ah, byte 0x35
     je ah35
     cmp ah, byte 0x4c
@@ -89,6 +93,17 @@ ah4:
 
     xchg al, dl
     call SerialWrite
+
+    pop ax
+    jmp ReturnFromInt
+
+
+; Printer output
+ah5:
+    push ax
+
+    mov al, dl
+    call ParallelSendByte
 
     pop ax
     jmp ReturnFromInt
@@ -192,6 +207,32 @@ ah0d:
     jmp ReturnFromInt
 
 
+; Rename file using FCB
+ah17:
+    push si
+    push di
+    push es
+    push ds
+    pop es
+
+    mov di, dx
+    mov si, dx
+    inc di ; Original file name
+    add si, 0x11 ; New file name
+    call RenameFile
+
+    pop es
+    pop di
+    pop si
+    xor al, al
+    jnc ReturnFromInt
+
+    ; Error
+    mov al, byte 0xff
+    jmp ReturnFromInt
+
+
+
 ; Get current default drive
 ah19:
     mov al, byte [cs:CurrentDisk]
@@ -253,6 +294,19 @@ ah2c:
     pop cx
     pop bx
     pop ax
+    jmp ReturnFromInt
+
+
+; Get DOS version number
+ah30:
+    ; We tell it's DOS 3.3 :winky-face:
+    mov ax, word 0x0330
+    mov bh, byte 0xff ; MS-DOS
+
+    ; bl:cx is the serial number
+    xor cx, cx
+    xor bl, bl
+
     jmp ReturnFromInt
 
 

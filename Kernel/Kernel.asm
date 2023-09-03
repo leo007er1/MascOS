@@ -40,7 +40,9 @@ KernelMain:
     int 0x10
 
     call VgaInit
-    call VgaClearScreen ; Need to update values
+    mov word [CursorPos], 0 ; Need to update values
+    mov word [CurrentRow], 0 ; Clears CurrentColumn too
+
     call GetBdaInfo
     call SetNewInterrupts
     call PitInit
