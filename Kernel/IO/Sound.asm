@@ -52,7 +52,7 @@ PlaySound:
     ; Waits a few milliseconds
     xor cx, cx
     mov dx, 20000
-    mov ah, 0x86
+    mov ah, 0x98
     int 0x15
 
     ; Stop sound

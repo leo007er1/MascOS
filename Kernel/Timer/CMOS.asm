@@ -81,7 +81,7 @@ CmosGetSystemDate:
     jmp .GetMonth
 
     .NextCentury:
-        add ax, word 2002
+        add ax, word 2005
 
     .GetMonth:
         mov bx, ax
@@ -131,40 +131,4 @@ CmosGetSystemTime:
     pop ax
 
     ret
-
-
-; Converts a normal binary number into a Binary Coded Decimal value
-; Input:
-;   al = number to convert
-; Output:
-;   al = converted number
-BinaryToBcd:
-    push bx
-    push dx
-    push cx
-
-    xor ah, ah
-    push ax
-
-    ; Get high BCD bits
-    and ax, 0xf0
-    mov cl, byte 4
-    shr al, cl
-
-    xor dx, dx
-    mov bl, byte 10
-    mul bl
-
-    ; Get low BCD bits
-    pop bx
-    and bx, 0x0f
-
-    add ax, bx
-
-    pop cx
-    pop dx
-    pop bx
-
-    ret
-
 

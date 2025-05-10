@@ -298,6 +298,7 @@ PrintLogo:
 %include "./Bootloader/Common.inc"
 %include "./Kernel/IVT.asm"
 %include "./Kernel/Screen/VGA.asm"
+%include "./Kernel/Math.asm"
 %include "./Kernel/Shell.asm"
 %include "./Kernel/Disk.asm"
 %include "./Kernel/FAT12.asm"

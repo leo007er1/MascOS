@@ -17,7 +17,7 @@ nop
 
 
 
-OEMidentifier: db "MASCOS  "
+OEMidentifier: db "MSDOS5.0"
 dw BytesPerSector
 db SectorsPerCluster
 dw ReservedSectors ; Sectors for boot record

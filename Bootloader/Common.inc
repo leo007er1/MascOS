@@ -27,7 +27,7 @@ VolumeId equ 0 ; Ignore I you aren't willing to put one, double word
 
 KernelSeg equ 0x7e0 ; Pretty important one
 ; Offset that adds up to the one given in when using LoadFile
-KernelOffset equ 7168 ; 14 sectors
+KernelOffset equ 7680 ; 15 sectors
 KernelLastAddress equ KernelSeg + KernelOffset
 
 ; We load only the first FAT after the IVT and reserve 4.5KB to it

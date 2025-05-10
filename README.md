@@ -16,7 +16,7 @@ If you want to learn how to create program for MascOS check [the documentation](
 It's a learning project. I thought creating an operating system that targets old hardware would be a fun experiment to deal with.
 
 ## Running the operating system
-You can use the .flp image provided in the latest release or compile yourself the operating system. For the last one refer to the `Compiling` section of this file.
+You can use the .flp image provided in the latest release or compile yourself the operating system. For the last one refer to the `Compiling` section.
 It's very simple, but first you need to install Qemu (you need `qemu-system-i386`).
 
 Arch
@@ -29,7 +29,7 @@ Ubuntu/Linux Mint
 sudo apt install qemu
 ```
 
-After installing Qemu just type:
+After installing Qemu:
 ```sh
 make run
 ```
@@ -40,16 +40,11 @@ qemu-system-i386 -fda Build/MascOS.flp -M smm=off -no-shutdown -no-reboot \
 	-cpu 486 -rtc base=localtime,clock=host
 ```
 
-If you want to run this on real hardware you need a computer with **legacy BIOS** and *not* a modern UEFI system, since MascOS aims to run on old hardware, and it will, hopefully without blowing up anything. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
+If you want to run this on real hardware you need a computer with **legacy BIOS** and *not* a modern UEFI system, since MascOS aims to run on old hardware, and it will hopefully. To get the operating system image you can head to the Releases page, choose the latest release and download the .flp image, alternatively you can compile the os.
 
 ## Compiling
 To compile MascOS you need these packages:
  - Nasm
-
-After installing the packages open a terminal window and clone this repo with:
-```sh
-git clone https://github.com/leo007er1/MascOS.git && cd MascOS
-```
 
 To compile the latest version run this command. You need sudo permissions because the Makefile mounts an image to /dev/loop7.
 ```sh
@@ -72,8 +67,3 @@ make clean
 **1. Why does the text in the edit program blink?**
 
 The VGA driver disables bliking to allow to use all 16 colors for background on real VGA hardware. Unfortunately on simulated VGA this doesn't work, and the text blinks.
-
-#### Compiling
-**1. losetup: Build/MascOS.flp: failed to set up loop device: Device or resource busy**
-
-Well if you run `lsblk` you can see your devices and where they are mounted. The Makefile uses /dev/loop7 to build the os, so if you see `loop7` you need to change /dev/loop7 to something like /dev/loop8 in the makefile

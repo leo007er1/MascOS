@@ -42,7 +42,6 @@ VgaInit:
     in al, dx
 
     ; Sets bit 3, which is the blink enable bit
-    ; To enable it use 0x08
     and al, 0xf7
 
     ; Updates that freaking register with new value
